@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_glass_card"
+    android:padding="24dp">
+
+    <!-- Top Handle Bar -->
+    <View
+        android:id="@+id/handleBar"
+        android:layout_width="48dp"
+        android:layout_height="4dp"
+        android:background="@drawable/bg_glass_pill"
+        android:backgroundTint="@color/white_50"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Title & Close -->
+    <TextView
+        android:id="@+id/tvSettingsTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Cài đặt"
+        android:textColor="@color/white"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toStartOf="@id/btnCloseSettings"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/handleBar" />
+
+    <ImageButton
+        android:id="@+id/btnCloseSettings"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="@drawable/bg_glass_circle"
+        android:contentDescription="@string/app_name"
+        android:src="@drawable/ic_close"
+        app:layout_constraintBottom_toBottomOf="@id/tvSettingsTitle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/tvSettingsTitle" />
+
+    <!-- Setting: Auto update check -->
+    <LinearLayout
+        android:id="@+id/rowAutoUpdate"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:background="@drawable/bg_glass_pill"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvSettingsTitle">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/setting_auto_check_update"
+            android:textColor="@color/white"
+            android:textSize="14sp" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/switchAutoUpdate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:thumbTint="@color/accent_gold"
+            app:trackTint="@color/white_20" />
+    </LinearLayout>
+
+    <!-- Setting: Check update now button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnCheckUpdateNow"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="14dp"
+        android:backgroundTint="@color/glass_surface"
+        android:text="@string/setting_check_update_now"
+        android:textColor="@color/accent_gold"
+        app:cornerRadius="999dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/rowAutoUpdate"
+        app:strokeColor="@color/glass_stroke"
+        app:strokeWidth="1dp" />
+
+    <!-- Version Info -->
+    <TextView
+        android:id="@+id/tvAppVersionInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:textColor="@color/white_50"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btnCheckUpdateNow"
+        tools:text="AI Camera v1.0.0 (Doka Cam AI)" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

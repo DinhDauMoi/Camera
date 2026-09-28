@@ -1,45 +1,56 @@
 # AI Camera - Realtime AI Composition Guide (Doka Cam Style)
 
-Ứng dụng Android Native (Kotlin) chụp ảnh tối giản với AI hướng dẫn bố cục theo thời gian thực (kiểu Doka Cam / Leica), giao diện Liquid Glass (kính mờ trong suốt, blur nền, bo góc mượt mà). Tất cả tính năng chạy **hoàn toàn On-Device (Offline, Miễn phí 100%)**, không cần mạng, không cần tài khoản, không cần API server trả phí.
+Ứng dụng Android Native (Kotlin) chụp ảnh tối giản với AI hướng dẫn bố cục theo thời gian thực (kiểu Doka Cam / Leica), giao diện **Liquid Glass** (kính mờ trong suốt, blur nền, bo góc mượt mà, không góc nhọn). Tất cả tính năng AI chạy **hoàn toàn On-Device (Offline, Miễn phí 100%)**, không cần mạng, không cần tài khoản, không cần API server trả phí.
 
 ---
 
 ## 📸 Tính năng chính
 
-### 1. AI Composition Guide (Realtime AR)
-* **Lưới 1/3 (Rule of Thirds)**: Vẽ nét mỏng tinh tế, không che khuất chủ thể.
-* **Vòng tròn vàng (Target Ring)**: Đánh dấu giao điểm 1/3 lý tưởng gần chủ thể nhất (ưu tiên đường 1/3 tầm mắt nếu phát hiện chân dung người).
-* **Mũi tên AR & Nhận diện chủ thể**:
-  * Chạy Google ML Kit on-device (`face-detection` ưu tiên mặt người, fallback `object-detection` stream mode tìm vật thể).
-  * Mũi tên hướng dẫn điều hướng camera về vị trí vàng.
-* **Thước chân trời (Horizon Level)**: Đo độ cân bằng xoay nghiêng (roll/pitch) thông qua cảm biến `Rotation Vector`.
-* **Chấm điểm bố cục (0 – 100)**:
-  * Quy tắc tính điểm rule-based: gần giao điểm 1/3 (+ điểm), máy cân bằng thẳng thớm (+ điểm).
-  * Phạt điểm khi chủ thể bị cắt viền mép hình, chủ thể đặt chết ở chính giữa (dead-center), hoặc chủ thể quá nhỏ/quá to.
-* **Gợi ý tiếng Việt**: *"Dịch máy sang trái"*, *"Dịch máy sang phải"*, *"Hạ thấp máy xuống"*, *"Nâng máy lên cao"*, *"Giữ máy thẳng"*, *"Tiến lại gần chủ thể hơn"*, *"Bố cục hoàn hảo! Giữ yên để chụp"*.
-* **Tự động chụp (Auto Capture)**: Khi điểm bố cục $\ge 85$ được duy trì liên tục trong 1 giây $\to$ kích hoạt rung nhẹ (Haptic feedback) + tự động chụp ảnh.
+### 1. AI Composition Guide (AI Hướng dẫn Bố cục)
+* **AI mặc định TẮT**: Khi mở app là camera thường, preview sạch sẽ, không quét khung hình, không tốn pin.
+* **Nút bật/tắt AI trên thanh công cụ glass pill**:
+  * Chuyển đổi trạng thái trực quan (icon chuyển màu vàng ánh kim khi bật).
+  * **Bật AI**: Bắt đầu quét khung hình bằng Google ML Kit (`face-detection` ưu tiên người, fallback `object-detection` stream mode tìm vật thể) + kích hoạt engine chấm điểm rule-based và AR overlay:
+    * Lưới 1/3 mờ (tự động hiện khi bật AI).
+    * Vòng tròn vàng (vị trí đích lý tưởng gần chủ thể nhất).
+    * Mũi tên AR & gợi ý tiếng Việt: *"dịch máy sang trái"*, *"hạ thấp máy xuống"*, *"giữ máy thẳng"*, *"tiến lại gần hơn"*...
+    * Vòng điểm bố cục (0–100) ở góc trên màn hình.
+  * **Tắt AI**: Dừng quét ML Kit ngay lập tức để tiết kiệm pin, ẩn toàn bộ AR, quay về giao diện camera sạch.
+* **Nút chụp luôn chụp ngay**: Không bị AI chặn hay delay dù đang quét.
+* **Tự động chụp (Auto Capture)**: Chỉ kích hoạt khi AI đang BẬT và điểm bố cục $> 85$ duy trì liên tục trong 1 giây $\to$ rung nhẹ (Haptic pulse) + tự động chụp.
 
 ### 2. Bộ lọc ảnh (ColorMatrix Filter) & AI Gợi ý
-* 6 bộ lọc màu phong cách (không cần thư viện nặng, nướng thẳng vào ảnh khi lưu):
-  * **Gốc**: Màu sắc trung thực của cảm biến.
-  * **Sáng (Bright)**: Nâng sáng, tăng sức sống trong điều kiện thiếu sáng.
-  * **Trầm (Muted)**: Giảm độ bão hòa, bóng đổ sâu, phong cách moody.
+* 6 bộ lọc phong cách cổ điển (dùng `ColorMatrix`, nướng trực tiếp vào ảnh khi lưu):
+  * **Gốc**: Màu sắc tự nhiên.
+  * **Sáng (Bright)**: Nâng sáng, tăng sức sống cho ảnh thiếu sáng.
+  * **Trầm (Muted)**: Tone màu chiều sâu trầm ấm, moody.
   * **Đen trắng (B&W)**: Tương phản cao hoài niệm.
-  * **Ấm (Warm)**: Ánh nắng chiều vàng (Golden Hour).
-  * **Lạnh (Cool)**: Tone xanh lạnh điện ảnh (Cinematic Cool).
-  * **Film**: Nâng màu shadow, chất màu máy phim analog cổ điển.
-* **AI Gợi ý Filter**: Tự động phân tích độ sáng trung bình khung hình (Y-plane) kết hợp thời gian thực (ví dụ thiếu sáng/đêm $\to$ gợi ý Sáng; nắng gắt $\to$ gợi ý Trầm; hoàng hôn $\to$ gợi ý Ấm).
+  * **Ấm (Warm)**: Ánh nắng hoàng hôn (Golden Hour).
+  * **Lạnh (Cool)**: Tone xanh lạnh điện ảnh.
+  * **Film**: Nâng sáng vùng tối, chất màu film analog retro.
+* **AI gợi ý filter (rule-based)**: Đo độ sáng trung bình khung hình (Y-plane) kết hợp thời gian chụp trong ngày $\to$ hiện bóng gợi ý Liquid Glass để user kích hoạt nhanh bằng 1 chạm.
 
-### 3. Thao tác Camera & MediaStore
-* Chụp thủ công, lật camera trước / sau, chuyển chế độ flash (Tự động / Bật / Tắt).
-* Lưu ảnh chất lượng cao vào thư viện hệ thống qua `MediaStore.Images` (thư mục `Pictures/AICamera`), tương thích Android 10+ không cần xin quyền lưu trữ nguy hiểm.
-* Xem lại ảnh vừa chụp trực tiếp trong ứng dụng: Liquid Glass Bottom Sheet với cử chỉ vuốt ngang xem các ảnh đã lưu.
+### 3. Toggle Lưới 1/3 & Tab Thư viện (Gallery) riêng
+* **Toggle Lưới 1/3**: Nút bật/tắt lưới riêng trên thanh công cụ glass pill, lưu trạng thái vào Preferences.
+* **Tab Gallery riêng (Bottom navigation pill)**:
+  * Chuyển đổi giữa 2 tab: **Máy ảnh** và **Thư viện**.
+  * Lưới thumbnail 3 cột hiển thị ảnh đã chụp từ `MediaStore` (thư mục `Pictures/AICamera`), tất cả thumbnail bo góc tròn 18dp.
+  * Chạm vào ảnh để xem toàn màn hình (Fullscreen Viewer) với cử chỉ vuốt ngang xem các ảnh.
+  * **Nút Chia sẻ**: Chia sẻ ảnh qua ứng dụng khác với `ACTION_SEND`.
+  * **Nút Xóa ảnh**: Xóa ảnh an toàn qua MediaStore, hỗ trợ đầy đủ `RecoverableSecurityException` (Android 10+) và `createDeleteRequest` (Android 11+) với dialog xác nhận của hệ thống.
 
-### 4. Giao diện Liquid Glass (iOS 26 Style)
-* Nền kính mờ trong suốt, viền sáng mỏng `1px`, hiệu ứng chiều sâu và đổ bóng nhẹ.
-* Sử dụng `RenderEffect.createBlurEffect` trên Android 12+ (API 31+); tự động fallback nền mờ cho thiết bị cũ.
-* 100% bo góc (tối thiểu 20-28dp, thanh công cụ và nút bấm dạng capsule/pill bo tròn hoàn toàn).
-* 1 màu Accent duy nhất: **Golden Amber (`#FFB800`)**.
+### 4. Tự động Cập nhật trong App (Kiểu JAVIS)
+* Kiểm tra phiên bản mới từ GitHub Releases API:
+  `https://api.github.com/repos/DinhDauMoi/Camera/releases/latest`
+* So sánh `tag_name` với `versionName` trong app:
+  * Có bản mới $\to$ hiển thị dialog Liquid Glass (bo góc 24dp) hiển thị changelog và nút **Cập nhật ngay**.
+  * Tải file APK trực tiếp về cache với thanh tiến trình % $\to$ mở trình cài đặt hệ thống (`FileProvider` + `ACTION_VIEW`, quyền `REQUEST_INSTALL_PACKAGES`).
+* Có toggle *"Tự động kiểm tra bản cập nhật"* trong màn hình Cài đặt (mặc định BẬT, ghi nhớ version đã bỏ qua để tránh làm phiền).
+
+### 5. Giao diện (UI/UX) — Liquid Glass (iOS 26 Style)
+* Kính mờ trong suốt, blur nền thời gian thực (`RenderEffect.createBlurEffect` trên Android 12+, fallback nền mờ cho máy cũ).
+* Tuyệt đối không góc nhọn: bo tròn capsule/pill hoàn toàn hoặc bo góc 18–26dp.
+* Nền tối sang trọng, chữ trắng, 1 màu Accent duy nhất: **Golden Amber (`#FFB800`)**.
 
 ---
 
@@ -48,45 +59,36 @@
 ```text
 app/src/main/java/com/dinh/aicamera/
 ├── camera/
-│   ├── CameraManager.kt          # Điều khiển CameraX (Preview, Capture, Analysis, Flip, Flash, MediaStore)
-│   └── FrameAnalyzer.kt          # Phân tích frame trên background thread (ML Kit Face + Object, Luminance)
+│   ├── CameraManager.kt          # CameraX (Preview, Capture, Analysis, Flip, Flash, Filter & MediaStore)
+│   └── FrameAnalyzer.kt          # Phân tích frame ML Kit on-device (tự động bỏ qua khi AI tắt)
 ├── composition/
-│   ├── CompositionEngine.kt      # Chấm điểm 0-100, xác định giao điểm 1/3, tính toán auto-capture 1s, câu nhắc tiếng Việt
-│   ├── CompositionState.kt       # Model dữ liệu trạng thái bố cục
-│   └── SensorOrientationHelper.kt# Đọc cảm biến xoay đo góc nghiêng chân trời (Roll/Pitch)
+│   ├── CompositionEngine.kt      # Chấm điểm 0-100, xác định giao điểm 1/3, đếm 1s auto-capture
+│   ├── CompositionState.kt       # Trạng thái bố cục, AR target, góc nghiêng
+│   └── SensorOrientationHelper.kt# Đo góc nghiêng chân trời (Rotation Vector sensor)
 ├── filter/
-│   ├── FilterType.kt             # Danh mục filter (Sáng, Trầm, Đen trắng, Ấm, Lạnh, Film)
-│   ├── ColorMatrixFilter.kt      # Ma trận biến đổi màu ColorMatrix & xử lý trực tiếp lên Bitmap
-│   └── AIFilterRecommender.kt    # Gợi ý filter dựa trên độ sáng và thời gian chụp
+│   ├── FilterType.kt             # 6 bộ lọc ColorMatrix
+│   ├── ColorMatrixFilter.kt      # ColorMatrix và xử lý áp trực tiếp lên Bitmap
+│   └── AIFilterRecommender.kt    # Gợi ý filter dựa trên độ sáng và giờ chụp
 ├── overlay/
-│   └── CompositionOverlayView.kt # Custom View vẽ AR mượt mà 60fps (lưới 1/3, vòng đích vàng, mũi tên, thước chân trời, vòng điểm)
+│   └── CompositionOverlayView.kt # Custom View AR (lưới 1/3, target vàng, mũi tên, thước chân trời, vòng điểm)
 └── ui/
-    ├── MainActivity.kt           # Màn hình chính điều phối tương tác, xin quyền Camera, rung phản hồi
+    ├── MainActivity.kt           # Màn hình chính điều phối tab Camera & Gallery, AI toggle, permissions
+    ├── AppPreferences.kt         # Lưu trạng thái AI toggle, grid toggle, auto-update
     ├── LiquidGlassHelper.kt      # RenderEffect real-time blur cho Android 12+
-    ├── GalleryAdapter.kt         # Adapter vuốt ảnh qua ViewPager2
-    └── GalleryBottomSheetDialog.kt # Hộp thoại xem ảnh Liquid Glass
+    ├── SettingsBottomSheetDialog.kt # Hộp thoại cài đặt tự cập nhật và thông tin version
+    ├── gallery/
+    │   ├── GalleryGridAdapter.kt   # Adapter lưới ảnh bo góc 18dp
+    │   └── FullscreenPhotoDialog.kt# Trình xem ảnh full, vuốt ngang, nút chia sẻ và xóa an toàn
+    └── update/
+        ├── AppUpdateManager.kt    # Gọi GitHub Releases API, tải APK và mở FileProvider cài đặt
+        └── UpdateDialogFragment.kt# Dialog Liquid Glass hiển thị changelog và tiến trình tải
 ```
 
 ---
 
-## 🛠 Cách chạy thử và Build
+## 🛠 CI/CD Workflows (GitHub Actions)
 
-### 1. Mở trong Android Studio
-1. Mở Android Studio $\to$ **Open** $\to$ Chọn thư mục `Camera`.
-2. Chờ Gradle đồng bộ (Sync Project with Gradle Files).
-3. Kết nối điện thoại Android (Android 8.0 / API 26 trở lên) hoặc khởi động Android Emulator có hỗ trợ Camera.
-4. Nhấn **Run (Shift + F10)**.
-
-### 2. Build bằng dòng lệnh (Gradle)
-```bash
-# Windows
-gradlew.bat assembleDebug
-
-# macOS / Linux
-chmod +x gradlew
-./gradlew assembleDebug
-```
-File APK xuất ra tại: `app/build/outputs/apk/debug/app-debug.apk`.
-
-### 3. CI/CD Tự động hóa
-Workflow GitHub Actions đã được tích hợp tại `.github/workflows/build.yml`. Mỗi khi push code lên nhánh `main`, hệ thống sẽ tự động kích hoạt máy chủ Ubuntu, cài đặt JDK 17, build APK và đính kèm artifact `aicamera-debug-apk` để tải về trực tiếp.
+1. **Build Debug APK khi push lên `main`** ([.github/workflows/build.yml](file:///c:/Users/Admin/Desktop/Camera/.github/workflows/build.yml)):
+   * Tự động checkout, cài JDK 17, build `./gradlew assembleDebug` và upload artifact `aicamera-debug-apk`.
+2. **Tạo GitHub Release khi push tag** ([.github/workflows/release.yml](file:///c:/Users/Admin/Desktop/Camera/.github/workflows/release.yml)):
+   * Khi push tag (vd `v1.0.1`): tự động build APK, tạo GitHub Release với release notes, đính kèm file APK vào release để app tự động kiểm tra và cập nhật.

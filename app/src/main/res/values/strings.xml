@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">AI Camera</string>
-    <string name="camera_permission_rationale">AI Camera cần quyền truy cập Camera để phân tích bố cục realtime và chụp ảnh.</string>
-    <string name="permission_grant_btn">Cho phép Camera</string>
+    <string name="camera_permission_rationale">AI Camera cần quyền truy cập Camera để chụp ảnh và phân tích bố cục.</string>
+    <string name="storage_permission_rationale">Cần cấp quyền đọc ảnh để hiển thị hình ảnh trong Thư viện.</string>
+    <string name="permission_grant_btn">Cho phép truy cập</string>
 
     <!-- Hướng dẫn bố cục AI (Tiếng Việt) -->
     <string name="guide_perfect">Bố cục hoàn hảo! Giữ yên để chụp</string>
@@ -24,14 +25,37 @@
     <string name="filter_cool">Lạnh</string>
     <string name="filter_film">Film</string>
 
-    <!-- Tự động chụp & Flash -->
+    <!-- Tự động chụp & Flash & AI Toggle -->
+    <string name="ai_mode_on">AI Hướng dẫn: BẬT</string>
+    <string name="ai_mode_off">AI Hướng dẫn: TẮT</string>
+    <string name="grid_on">Lưới 1/3: BẬT</string>
+    <string name="grid_off">Lưới 1/3: TẮT</string>
     <string name="auto_capture_on">Tự chụp: BẬT</string>
     <string name="auto_capture_off">Tự chụp: TẮT</string>
     <string name="flash_auto">Flash Tự động</string>
     <string name="flash_on">Flash Bật</string>
     <string name="flash_off">Flash Tắt</string>
 
+    <!-- Navigation & Gallery -->
+    <string name="tab_camera">Máy ảnh</string>
+    <string name="tab_gallery">Thư viện</string>
     <string name="photo_saved">Đã lưu ảnh vào Thư viện</string>
-    <string name="gallery_title">Ảnh vừa chụp</string>
-    <string name="gallery_empty">Chưa có ảnh nào được chụp</string>
+    <string name="gallery_title">Thư viện ảnh</string>
+    <string name="gallery_empty">Chưa có ảnh nào trong thư viện</string>
+    <string name="action_share">Chia sẻ</string>
+    <string name="action_delete">Xóa ảnh</string>
+    <string name="delete_confirm_title">Xác nhận xóa</string>
+    <string name="delete_confirm_desc">Bạn có chắc chắn muốn xóa ảnh này khỏi thiết bị không?</string>
+    <string name="action_cancel">Hủy</string>
+
+    <!-- In-App Auto Update -->
+    <string name="update_dialog_title">Có bản cập nhật mới</string>
+    <string name="update_dialog_btn_update">Cập nhật ngay</string>
+    <string name="update_dialog_btn_later">Để sau</string>
+    <string name="update_downloading">Đang tải bản cập nhật...</string>
+    <string name="update_download_success">Đã tải xong, đang mở trình cài đặt</string>
+    <string name="update_download_failed">Tải bản cập nhật thất bại</string>
+    <string name="setting_auto_check_update">Tự động kiểm tra bản cập nhật</string>
+    <string name="setting_check_update_now">Kiểm tra cập nhật ngay</string>
+    <string name="no_update_available">Bạn đang sử dụng phiên bản mới nhất</string>
 </resources>

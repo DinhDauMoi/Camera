@@ -25,6 +25,20 @@ class CompositionOverlayView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
+    // AI mặc định TẮT
+    var isAiEnabled: Boolean = false
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    // Toggle lưới 1/3 riêng biệt
+    var isGridEnabled: Boolean = false
+        set(value) {
+            field = value
+            invalidate()
+        }
+
     private var currentState: CompositionState = CompositionState()
 
     // Smooth animated values
@@ -101,12 +115,6 @@ class CompositionOverlayView @JvmOverloads constructor(
         typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
     }
 
-    private val scoreLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = ContextCompat.getColor(context, R.color.white_70)
-        textSize = 9f * resources.displayMetrics.scaledDensity
-        textAlign = Paint.Align.CENTER
-    }
-
     private val guidanceBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ContextCompat.getColor(context, R.color.glass_surface_dark)
         style = Paint.Style.FILL
@@ -136,6 +144,11 @@ class CompositionOverlayView @JvmOverloads constructor(
         val oldScore = currentState.score
         currentState = state
 
+        if (!isAiEnabled) {
+            postInvalidateOnAnimation()
+            return
+        }
+
         if (oldScore != state.score) {
             scoreAnimator?.cancel()
             scoreAnimator = ValueAnimator.ofFloat(animatedScore, state.score.toFloat()).apply {
@@ -158,8 +171,16 @@ class CompositionOverlayView @JvmOverloads constructor(
         val h = height.toFloat()
         if (w <= 0f || h <= 0f) return
 
-        // 1. Vẽ lưới 1/3 mờ tinh tế
-        drawRuleOfThirdsGrid(canvas, w, h)
+        // 1. Vẽ lưới 1/3: Khi AI BẬT thì tự động hiện, hoặc khi toggle lưới riêng được bật
+        val shouldDrawGrid = isAiEnabled || isGridEnabled
+        if (shouldDrawGrid) {
+            drawRuleOfThirdsGrid(canvas, w, h)
+        }
+
+        // Nếu AI TẮT: Dừng tại đây, trả về camera thường sạch sẽ không có bất kỳ AR nào
+        if (!isAiEnabled) {
+            return
+        }
 
         // 2. Thước cân bằng chân trời (Horizon Level Indicator)
         drawHorizonIndicator(canvas, w, h)
@@ -184,11 +205,8 @@ class CompositionOverlayView @JvmOverloads constructor(
         val y1 = h / 3f
         val y2 = h * 2f / 3f
 
-        // Đường dọc
         canvas.drawLine(x1, 0f, x1, h, gridPaint)
         canvas.drawLine(x2, 0f, x2, h, gridPaint)
-
-        // Đường ngang
         canvas.drawLine(0f, y1, w, y1, gridPaint)
         canvas.drawLine(0f, y2, w, y2, gridPaint)
     }
@@ -210,12 +228,9 @@ class CompositionOverlayView @JvmOverloads constructor(
         canvas.save()
         canvas.rotate(-roll, cx, cy)
 
-        // Vẽ vạch cân bằng 2 bên tâm màn hình
         val gap = 20f * resources.displayMetrics.density
         canvas.drawLine(cx - gap - lineLen, cy, cx - gap, cy, horizonPaint)
         canvas.drawLine(cx + gap, cy, cx + gap + lineLen, cy, horizonPaint)
-
-        // Chấm tròn tâm
         canvas.drawCircle(cx, cy, 2.5f * resources.displayMetrics.density, horizonPaint)
 
         canvas.restore()
@@ -229,11 +244,8 @@ class CompositionOverlayView @JvmOverloads constructor(
         targetY += 0.25f * (pt.y - targetY)
 
         val radius = 16f * resources.displayMetrics.density
-        // Outer subtle glow
         canvas.drawCircle(targetX, targetY, radius + 4f, targetGlowPaint)
-        // Core golden ring
         canvas.drawCircle(targetX, targetY, radius, targetRingPaint)
-        // Center crosshair dot
         canvas.drawCircle(targetX, targetY, 2f * resources.displayMetrics.density, targetRingPaint)
     }
 
@@ -244,9 +256,7 @@ class CompositionOverlayView @JvmOverloads constructor(
         val cornerLen = 14f * resources.displayMetrics.density
         val radius = 10f * resources.displayMetrics.density
 
-        // Bo 4 góc tinh tế thay vì khung chữ nhật thô ráp
         val path = Path()
-
         // Top-Left
         path.moveTo(box.left, box.top + cornerLen)
         path.lineTo(box.left, box.top + radius)
@@ -256,7 +266,7 @@ class CompositionOverlayView @JvmOverloads constructor(
         // Top-Right
         path.moveTo(box.right - cornerLen, box.top)
         path.lineTo(box.right - radius, box.top)
-        path.quadTo(box.right, box.top, box.right, box.top + radius)
+        path.quadTo(box.right, box.top, box.right + radius, box.top)
         path.lineTo(box.right, box.top + cornerLen)
 
         // Bottom-Right
@@ -284,13 +294,11 @@ class CompositionOverlayView @JvmOverloads constructor(
         val to = currentState.targetPoint
         val dist = hypot(to.x - from.x, to.y - from.y)
 
-        // Chỉ vẽ mũi tên nếu khoảng cách đáng kể (> 35dp) và chưa đạt điểm tối ưu
         val threshold = 35f * resources.displayMetrics.density
         if (dist <= threshold || currentState.score >= 85) return
 
         val angle = atan2((to.y - from.y).toDouble(), (to.x - from.x).toDouble()).toFloat()
 
-        // Dời điểm đầu và đuôi tránh đè lên tâm
         val startGap = 20f * resources.displayMetrics.density
         val endGap = 20f * resources.displayMetrics.density
 
@@ -301,7 +309,6 @@ class CompositionOverlayView @JvmOverloads constructor(
 
         canvas.drawLine(startX, startY, endX, endY, arrowPaint)
 
-        // Đầu mũi tên tam giác sắc nét
         val headSize = 8f * resources.displayMetrics.density
         val headPath = Path()
         headPath.moveTo(endX, endY)
@@ -324,14 +331,10 @@ class CompositionOverlayView @JvmOverloads constructor(
         val cx = w - ringRadius - 20f * dp
         val cy = 115f * dp
 
-        // Glass background disk
         canvas.drawCircle(cx, cy, ringRadius + 4f * dp, scoreBgPaint)
         canvas.drawCircle(cx, cy, ringRadius + 4f * dp, guidanceStrokePaint)
-
-        // Track
         canvas.drawCircle(cx, cy, ringRadius, scoreTrackPaint)
 
-        // Dynamic Progress Color
         val score = animatedScore.toInt()
         val color = when {
             score >= 85 -> ContextCompat.getColor(context, R.color.score_green)
@@ -345,7 +348,6 @@ class CompositionOverlayView @JvmOverloads constructor(
         val oval = RectF(cx - ringRadius, cy - ringRadius, cx + ringRadius, cy + ringRadius)
         canvas.drawArc(oval, -90f, sweepAngle, false, scoreProgressPaint)
 
-        // Outer Auto-Capture Hold Progress Arc
         if (currentState.autoCaptureProgress > 0f) {
             val autoOval = RectF(
                 cx - ringRadius - 6f * dp,
@@ -357,7 +359,6 @@ class CompositionOverlayView @JvmOverloads constructor(
             canvas.drawArc(autoOval, -90f, autoSweep, false, autoCaptureRingPaint)
         }
 
-        // Score text
         val textY = cy + (scoreTextPaint.textSize / 3f) - 2f * dp
         canvas.drawText("$score", cx, textY, scoreTextPaint)
     }

@@ -42,6 +42,9 @@ class FrameAnalyzer(
 
     private val isProcessing = AtomicBoolean(false)
 
+    // AI mặc định TẮT: khi tắt thì KHÔNG quét ML Kit để tiết kiệm pin tối đa
+    var isAiEnabled: Boolean = false
+
     // View dimensions for coordinate scaling
     var previewViewWidth: Int = 1080
     var previewViewHeight: Int = 1920
@@ -60,11 +63,18 @@ class FrameAnalyzer(
             return
         }
 
-        val rotationDegrees = imageProxy.imageInfo.rotationDegrees
-
-        // Tính độ sáng trung bình nhanh từ Y-plane (không tốn tài nguyên)
+        // Tính độ sáng nhanh từ Y-plane (siêu nhẹ, không tốn tài nguyên)
         val avgLuminance = calculateAverageLuminance(imageProxy.planes[0].buffer)
 
+        // Nếu AI TẮT: Dừng ngay mọi xử lý ML Kit, trả về khung trống, tiết kiệm pin tuyệt đối
+        if (!isAiEnabled) {
+            onFrameAnalyzed(null, false, avgLuminance)
+            isProcessing.set(false)
+            imageProxy.close()
+            return
+        }
+
+        val rotationDegrees = imageProxy.imageInfo.rotationDegrees
         val inputImage = InputImage.fromMediaImage(mediaImage, rotationDegrees)
 
         // Bước 1: Ưu tiên tìm mặt người trước
@@ -85,7 +95,6 @@ class FrameAnalyzer(
                 }
             }
             .addOnFailureListener {
-                // Fallback tìm vật thể
                 detectObjects(inputImage, imageProxy, rotationDegrees, avgLuminance)
             }
     }
@@ -129,14 +138,12 @@ class FrameAnalyzer(
         val viewW = previewViewWidth.toFloat()
         val viewH = previewViewHeight.toFloat()
 
-        // Scale kiểu fillCenter
         val scale = maxOf(viewW / rotatedImgW, viewH / rotatedImgH)
         val scaledW = rotatedImgW * scale
         val scaledH = rotatedImgH * scale
         val dx = (viewW - scaledW) / 2f
         val dy = (viewH - scaledH) / 2f
 
-        // Chuẩn hóa tọa độ theo góc xoay
         val matrix = Matrix()
         matrix.postRotate(rotationDegrees.toFloat())
         when (rotationDegrees) {
@@ -153,12 +160,9 @@ class FrameAnalyzer(
         return dstRectF
     }
 
-    /**
-     * Đọc nhanh độ sáng trung bình qua Y-plane của YUV420
-     */
     private fun calculateAverageLuminance(buffer: ByteBuffer): Float {
         buffer.rewind()
-        val step = 32 // Sample 1/32 số pixel để cực nhanh và nhẹ
+        val step = 32
         var total = 0L
         var count = 0
         var i = 0

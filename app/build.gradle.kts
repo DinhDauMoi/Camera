@@ -15,6 +15,9 @@ android {
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "GITHUB_REPO_OWNER", "\"DinhDauMoi\"")
+        buildConfigField("String", "GITHUB_REPO_NAME", "\"Camera\"")
     }
 
     buildTypes {
@@ -42,6 +45,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 
@@ -53,6 +57,7 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.viewpager2:viewpager2:1.1.0")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
 
     // CameraX
     val cameraxVersion = "1.3.4"
@@ -69,6 +74,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 
-    // Coil for modern image loading in gallery
+    // Coil for modern image loading
     implementation("io.coil-kt:coil:2.7.0")
+
+    // OkHttp for GitHub Releases API and APK download
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

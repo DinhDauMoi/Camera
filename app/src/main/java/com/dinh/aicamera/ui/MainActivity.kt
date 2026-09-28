@@ -1,6 +1,7 @@
 package com.dinh.aicamera.ui
 
 import android.Manifest
+import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -9,6 +10,7 @@ import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.MediaStore
 import android.view.View
 import android.view.animation.ScaleAnimation
 import android.widget.TextView
@@ -17,6 +19,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.ImageCapture
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.dinh.aicamera.R
@@ -27,10 +31,19 @@ import com.dinh.aicamera.composition.SensorOrientationHelper
 import com.dinh.aicamera.databinding.ActivityMainBinding
 import com.dinh.aicamera.filter.AIFilterRecommender
 import com.dinh.aicamera.filter.FilterType
+import com.dinh.aicamera.ui.gallery.FullscreenPhotoDialog
+import com.dinh.aicamera.ui.gallery.GalleryGridAdapter
+import com.dinh.aicamera.ui.update.AppUpdateManager
+import com.dinh.aicamera.ui.update.UpdateDialogFragment
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var preferences: AppPreferences
+    private lateinit var updateManager: AppUpdateManager
 
     private lateinit var cameraManager: CameraManager
     private lateinit var frameAnalyzer: FrameAnalyzer
@@ -41,8 +54,11 @@ class MainActivity : AppCompatActivity() {
     private var currentPitch: Float = 0f
 
     private var activeFilter: FilterType = FilterType.NONE
-    private var isAutoCaptureEnabled: Boolean = true
     private var isCapturing: Boolean = false
+
+    // Gallery Tab State
+    private val galleryUris = mutableListOf<Uri>()
+    private lateinit var galleryAdapter: GalleryGridAdapter
 
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -55,25 +71,45 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val storagePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            loadGalleryPhotos()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        preferences = AppPreferences(this)
+        updateManager = AppUpdateManager(this)
+
         initAIEngines()
         setupUI()
         setupSensors()
+        setupGalleryTab()
         checkCameraPermission()
+
+        // Tự động kiểm tra bản cập nhật mới trên GitHub (không spam)
+        autoCheckAppUpdate()
     }
 
     private fun initAIEngines() {
         compositionEngine = CompositionEngine()
+        compositionEngine.isAutoCaptureEnabled = preferences.isAutoCaptureEnabled
 
         frameAnalyzer = FrameAnalyzer { subjectBox, isFace, avgLuminance ->
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
 
-                // Đánh giá bố cục thông minh theo thời gian thực
+                // Nếu AI TẮT: Bỏ qua mọi tính toán để máy chạy nhẹ nhất
+                if (!preferences.isAiEnabled) {
+                    return@runOnUiThread
+                }
+
                 val screenW = binding.previewView.width.toFloat()
                 val screenH = binding.previewView.height.toFloat()
 
@@ -85,17 +121,25 @@ class MainActivity : AppCompatActivity() {
                     rollAngle = currentRoll,
                     pitchAngle = currentPitch,
                     onAutoCaptureTrigger = {
-                        triggerShutterCapture(isAuto = true)
+                        // Tự động chụp chỉ kích hoạt khi AI đang BẬT
+                        if (preferences.isAiEnabled) {
+                            triggerShutterCapture(isAuto = true)
+                        }
                     }
                 )
 
-                // Cập nhật AR overlay (lưới 1/3, target vàng, mũi tên, thước chân trời, vòng điểm)
+                // Cập nhật AR overlay
                 binding.compositionOverlay.updateState(state)
 
-                // AI Gợi ý filter thông minh dựa vào độ sáng khung hình & thời gian
+                // Gợi ý filter thông minh
                 evaluateAIFilterSuggestion(avgLuminance)
             }
         }
+
+        // Đồng bộ trạng thái AI mặc định TẮT
+        frameAnalyzer.isAiEnabled = preferences.isAiEnabled
+        binding.compositionOverlay.isAiEnabled = preferences.isAiEnabled
+        binding.compositionOverlay.isGridEnabled = preferences.isGridEnabled
     }
 
     private fun setupSensors() {
@@ -108,9 +152,29 @@ class MainActivity : AppCompatActivity() {
     private fun setupUI() {
         // Áp dụng Liquid Glass blur effect (Android 12+)
         LiquidGlassHelper.applyBlurEffect(binding.topToolbar, 25f)
-        LiquidGlassHelper.applyBlurEffect(binding.bottomBar, 25f)
+        LiquidGlassHelper.applyBlurEffect(binding.bottomNavigationPill, 25f)
 
-        // Nút chụp thủ công
+        // 1. Nút Bật/Tắt AI (Mặc định TẮT theo yêu cầu)
+        updateAiToggleUI()
+        binding.btnAiToggle.setOnClickListener {
+            preferences.isAiEnabled = !preferences.isAiEnabled
+            frameAnalyzer.isAiEnabled = preferences.isAiEnabled
+            binding.compositionOverlay.isAiEnabled = preferences.isAiEnabled
+            updateAiToggleUI()
+
+            val msg = if (preferences.isAiEnabled) "Đã bật AI Hướng dẫn bố cục" else "Đã tắt AI - Trở về camera thường"
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+        }
+
+        // 2. Toggle Lưới 1/3 riêng biệt
+        updateGridToggleUI()
+        binding.btnGridToggle.setOnClickListener {
+            preferences.isGridEnabled = !preferences.isGridEnabled
+            binding.compositionOverlay.isGridEnabled = preferences.isGridEnabled
+            updateGridToggleUI()
+        }
+
+        // 3. Nút chụp luôn chụp ngay lập tức
         binding.btnShutter.setOnClickListener {
             triggerShutterCapture(isAuto = false)
         }
@@ -127,11 +191,9 @@ class MainActivity : AppCompatActivity() {
             updateFlashIcon(mode)
         }
 
-        // Bật / Tắt Tự động chụp
-        binding.btnAutoCapture.setOnClickListener {
-            isAutoCaptureEnabled = !isAutoCaptureEnabled
-            compositionEngine.isAutoCaptureEnabled = isAutoCaptureEnabled
-            updateAutoCaptureUI()
+        // Cài đặt
+        binding.btnSettings.setOnClickListener {
+            SettingsBottomSheetDialog.newInstance().show(supportFragmentManager, SettingsBottomSheetDialog.TAG)
         }
 
         // Mở Carousel chọn Filter
@@ -140,18 +202,159 @@ class MainActivity : AppCompatActivity() {
             binding.filterCarouselScroll.visibility = if (isVisible) View.GONE else View.VISIBLE
         }
 
-        // Nút xem Thư viện ảnh vừa chụp
-        binding.btnGallery.setOnClickListener {
-            GalleryBottomSheetDialog.newInstance().show(supportFragmentManager, GalleryBottomSheetDialog.TAG)
+        // Nút xem nhanh thư viện
+        binding.btnQuickPreview.setOnClickListener {
+            switchTab(isCamera = false)
         }
 
-        // Cấp quyền
+        // Chuyển đổi giữa 2 tab: Máy ảnh & Thư viện
+        binding.tabBtnCamera.setOnClickListener {
+            switchTab(isCamera = true)
+        }
+        binding.tabBtnGallery.setOnClickListener {
+            switchTab(isCamera = false)
+        }
+
+        // Nút cấp quyền camera
         binding.btnGrantPermission.setOnClickListener {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
 
         populateFilterCarousel()
-        updateAutoCaptureUI()
+    }
+
+    private fun updateAiToggleUI() {
+        val isEnabled = preferences.isAiEnabled
+        if (isEnabled) {
+            binding.btnAiToggle.setImageResource(R.drawable.ic_sparkles)
+            binding.btnAiToggle.setColorFilter(ContextCompat.getColor(this, R.color.accent_gold))
+            binding.btnAiToggle.setBackgroundResource(R.drawable.bg_glass_pill_active)
+            if (preferences.isAutoCaptureEnabled) {
+                binding.autoCaptureBadge.visibility = View.VISIBLE
+            }
+        } else {
+            binding.btnAiToggle.setImageResource(R.drawable.ic_sparkles)
+            binding.btnAiToggle.setColorFilter(ContextCompat.getColor(this, R.color.white_50))
+            binding.btnAiToggle.setBackgroundResource(R.drawable.bg_glass_circle)
+            binding.autoCaptureBadge.visibility = View.GONE
+            binding.aiSuggestionBubble.visibility = View.GONE
+        }
+    }
+
+    private fun updateGridToggleUI() {
+        val isGridOn = preferences.isGridEnabled
+        if (isGridOn) {
+            binding.btnGridToggle.setColorFilter(ContextCompat.getColor(this, R.color.accent_gold))
+        } else {
+            binding.btnGridToggle.setColorFilter(ContextCompat.getColor(this, R.color.white_50))
+        }
+    }
+
+    private fun switchTab(isCamera: Boolean) {
+        if (isCamera) {
+            binding.cameraTabContainer.visibility = View.VISIBLE
+            binding.galleryTabContainer.visibility = View.GONE
+            binding.tabBtnCamera.setBackgroundResource(R.drawable.bg_glass_pill_active)
+            binding.tabBtnCamera.setTextColor(ContextCompat.getColor(this, R.color.accent_gold))
+            binding.tabBtnGallery.background = null
+            binding.tabBtnGallery.setTextColor(ContextCompat.getColor(this, R.color.white_70))
+        } else {
+            binding.cameraTabContainer.visibility = View.GONE
+            binding.galleryTabContainer.visibility = View.VISIBLE
+            binding.tabBtnGallery.setBackgroundResource(R.drawable.bg_glass_pill_active)
+            binding.tabBtnGallery.setTextColor(ContextCompat.getColor(this, R.color.accent_gold))
+            binding.tabBtnCamera.background = null
+            binding.tabBtnCamera.setTextColor(ContextCompat.getColor(this, R.color.white_70))
+
+            checkStoragePermissionAndLoadGallery()
+        }
+    }
+
+    private fun setupGalleryTab() {
+        binding.rvGalleryGrid.layoutManager = GridLayoutManager(this, 3)
+        galleryAdapter = GalleryGridAdapter(galleryUris) { position ->
+            FullscreenPhotoDialog.newInstance(
+                uris = galleryUris,
+                startPosition = position,
+                onDeleted = { deletedPos ->
+                    galleryAdapter.removeAt(deletedPos)
+                    updateGalleryCount()
+                }
+            ).show(supportFragmentManager, FullscreenPhotoDialog.TAG)
+        }
+        binding.rvGalleryGrid.adapter = galleryAdapter
+    }
+
+    private fun checkStoragePermissionAndLoadGallery() {
+        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+
+        if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
+            loadGalleryPhotos()
+        } else {
+            storagePermissionLauncher.launch(permission)
+        }
+    }
+
+    private fun loadGalleryPhotos() {
+        lifecycleScope.launch {
+            val list = queryMediaStorePhotos()
+            galleryAdapter.updateList(list)
+            updateGalleryCount()
+
+            // Cập nhật nút xem nhanh
+            if (list.isNotEmpty()) {
+                binding.ivQuickThumbnail.load(list.first()) {
+                    transformations(CircleCropTransformation())
+                    crossfade(true)
+                }
+            }
+        }
+    }
+
+    private suspend fun queryMediaStorePhotos(): List<Uri> = withContext(Dispatchers.IO) {
+        val photoList = mutableListOf<Uri>()
+        val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DATE_ADDED)
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+
+        try {
+            val cursor = contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                null,
+                null,
+                sortOrder
+            )
+            cursor?.use {
+                val idColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                var count = 0
+                while (it.moveToNext() && count < 60) {
+                    val id = it.getLong(idColumn)
+                    val contentUri = ContentUris.withAppendedId(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        id
+                    )
+                    photoList.add(contentUri)
+                    count++
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return@withContext photoList
+    }
+
+    private fun updateGalleryCount() {
+        if (galleryUris.isEmpty()) {
+            binding.tvEmptyGallery.visibility = View.VISIBLE
+            binding.tvGalleryCount.text = "0 ảnh"
+        } else {
+            binding.tvEmptyGallery.visibility = View.GONE
+            binding.tvGalleryCount.text = "${galleryUris.size} ảnh"
+        }
     }
 
     private fun populateFilterCarousel() {
@@ -197,12 +400,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun evaluateAIFilterSuggestion(luminance: Float) {
+        if (!preferences.isAiEnabled) {
+            binding.aiSuggestionBubble.visibility = View.GONE
+            return
+        }
+
         val suggestion = AIFilterRecommender.recommend(luminance)
         if (suggestion.filterType != activeFilter) {
             binding.aiSuggestionBubble.visibility = View.VISIBLE
             binding.tvAiSuggestion.text = suggestion.message
 
-            // Chạm vào bóng gợi ý để kích hoạt ngay filter AI đề xuất
             binding.aiSuggestionBubble.setOnClickListener {
                 selectFilter(suggestion.filterType)
                 binding.aiSuggestionBubble.visibility = View.GONE
@@ -217,10 +424,8 @@ class MainActivity : AppCompatActivity() {
         if (isCapturing) return
         isCapturing = true
 
-        // Hiệu ứng rung nhẹ
         vibrateLight()
 
-        // Animation nút chụp
         val scaleAnim = ScaleAnimation(
             1f, 0.85f, 1f, 0.85f,
             ScaleAnimation.RELATIVE_TO_SELF, 0.5f,
@@ -232,7 +437,6 @@ class MainActivity : AppCompatActivity() {
         }
         binding.shutterInnerCircle.startAnimation(scaleAnim)
 
-        // Flash màn hình giả lập chụp ảnh
         showCaptureFlash()
 
         cameraManager.takePhoto(
@@ -269,11 +473,15 @@ class MainActivity : AppCompatActivity() {
         val message = if (isAuto) "AI Tự động chụp & lưu ảnh!" else getString(R.string.photo_saved)
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
-        // Hiển thị thumbnail vào nút Gallery tròn
-        binding.ivGalleryThumbnail.load(uri) {
+        binding.ivQuickThumbnail.load(uri) {
             transformations(CircleCropTransformation())
             crossfade(true)
         }
+
+        // Chèn vào đầu danh sách gallery
+        galleryUris.add(0, uri)
+        galleryAdapter.notifyItemInserted(0)
+        updateGalleryCount()
     }
 
     private fun updateFlashIcon(mode: Int) {
@@ -283,20 +491,6 @@ class MainActivity : AppCompatActivity() {
             else -> R.drawable.ic_flash_auto
         }
         binding.btnFlash.setImageResource(iconRes)
-    }
-
-    private fun updateAutoCaptureUI() {
-        if (isAutoCaptureEnabled) {
-            binding.btnAutoCapture.setImageResource(R.drawable.ic_auto_capture_on)
-            binding.autoCaptureBadge.visibility = View.VISIBLE
-            binding.autoCaptureDot.setBackgroundTintList(
-                ContextCompat.getColorStateList(this, R.color.score_green)
-            )
-            binding.tvAutoCaptureStatus.text = "AUTO ON"
-        } else {
-            binding.btnAutoCapture.setImageResource(R.drawable.ic_auto_capture_off)
-            binding.autoCaptureBadge.visibility = View.GONE
-        }
     }
 
     private fun animateButtonClick(view: View) {
@@ -324,7 +518,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         } catch (e: Exception) {
-            // Ignore if vibration is not supported
+            // Ignore
         }
     }
 
@@ -351,6 +545,19 @@ class MainActivity : AppCompatActivity() {
                 frameAnalyzer = frameAnalyzer
             )
             cameraManager.startCamera()
+        }
+    }
+
+    private fun autoCheckAppUpdate() {
+        lifecycleScope.launch {
+            val updateInfo = updateManager.checkUpdate(isManual = false)
+            if (updateInfo != null && updateInfo.isNewer) {
+                UpdateDialogFragment.newInstance(
+                    version = updateInfo.latestVersion,
+                    changelog = updateInfo.changelog,
+                    url = updateInfo.downloadUrl
+                ).show(supportFragmentManager, UpdateDialogFragment.TAG)
+            }
         }
     }
 

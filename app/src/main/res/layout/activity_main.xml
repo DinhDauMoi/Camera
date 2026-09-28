@@ -7,257 +7,412 @@
     android:layout_height="match_parent"
     android:background="@color/black">
 
-    <!-- Camera Preview -->
-    <androidx.camera.view.PreviewView
-        android:id="@+id/previewView"
+    <!-- ================= 1. TAB MÁY ẢNH (CAMERA VIEW) ================= -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/cameraTabContainer"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:scaleType="fillCenter" />
-
-    <!-- AI Composition Guide Overlay (Vẽ AR lưới 1/3, target vàng, mũi tên, thước cân bằng, vòng điểm) -->
-    <com.dinh.aicamera.overlay.CompositionOverlayView
-        android:id="@+id/compositionOverlay"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- Top Floating Glass Pill Toolbar (Không chiếm full-width, lơ lửng, bo tròn hoàn toàn) -->
-    <LinearLayout
-        android:id="@+id/topToolbar"
-        android:layout_width="wrap_content"
-        android:layout_height="52dp"
-        android:layout_marginTop="48dp"
-        android:background="@drawable/bg_glass_pill"
-        android:elevation="8dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="12dp"
-        android:paddingVertical="4dp"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavigationPill"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <!-- Flash Mode Toggle -->
-        <ImageButton
-            android:id="@+id/btnFlash"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/flash_auto"
-            android:src="@drawable/ic_flash_auto" />
+        <!-- Camera Preview -->
+        <androidx.camera.view.PreviewView
+            android:id="@+id/previewView"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:scaleType="fillCenter" />
 
-        <!-- Auto Capture Toggle -->
-        <ImageButton
-            android:id="@+id/btnAutoCapture"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="8dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/auto_capture_on"
-            android:src="@drawable/ic_auto_capture_on" />
+        <!-- AI Composition Guide Overlay -->
+        <com.dinh.aicamera.overlay.CompositionOverlayView
+            android:id="@+id/compositionOverlay"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Filter Selector Pill Trigger -->
+        <!-- Top Floating Glass Pill Toolbar -->
         <LinearLayout
-            android:id="@+id/btnFilterToggle"
+            android:id="@+id/topToolbar"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginStart="8dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="48dp"
             android:background="@drawable/bg_glass_pill"
+            android:elevation="8dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="12dp">
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <!-- AI Composition Toggle (Mặc định TẮT, icon đổi trạng thái rõ ràng) -->
+            <ImageButton
+                android:id="@+id/btnAiToggle"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_glass_circle"
+                android:contentDescription="@string/ai_mode_off"
+                android:src="@drawable/ic_sparkles"
+                app:tint="@color/white_50" />
+
+            <!-- Toggle Lưới 1/3 riêng biệt -->
+            <ImageButton
+                android:id="@+id/btnGridToggle"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/grid_off"
+                android:src="@drawable/ic_grid"
+                app:tint="@color/white_50" />
+
+            <!-- Flash Mode Toggle -->
+            <ImageButton
+                android:id="@+id/btnFlash"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/flash_auto"
+                android:src="@drawable/ic_flash_auto" />
+
+            <!-- Filter Selector Trigger -->
+            <LinearLayout
+                android:id="@+id/btnFilterToggle"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_glass_pill"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_filter"
+                    app:tint="@color/white" />
+
+                <TextView
+                    android:id="@+id/tvCurrentFilterName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="@string/filter_none"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Camera Switch (Trước/Sau) -->
+            <ImageButton
+                android:id="@+id/btnSwitchCamera"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/app_name"
+                android:src="@drawable/ic_camera_flip" />
+
+            <!-- Settings Button -->
+            <ImageButton
+                android:id="@+id/btnSettings"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Cài đặt"
+                android:src="@drawable/ic_settings" />
+        </LinearLayout>
+
+        <!-- AI Suggestion Bubble -->
+        <LinearLayout
+            android:id="@+id/aiSuggestionBubble"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_glass_pill"
+            android:elevation="6dp"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="6dp"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/topToolbar"
+            tools:visibility="visible">
 
             <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_sparkles" />
 
             <TextView
-                android:id="@+id/tvCurrentFilterName"
+                android:id="@+id/tvAiSuggestion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
-                android:text="@string/filter_none"
-                android:textColor="@color/white"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+                android:textColor="@color/accent_gold"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                tools:text="AI gợi ý: Filter Sáng (Khung hình tối)" />
         </LinearLayout>
 
-        <!-- Camera Switch (Trước/Sau) -->
-        <ImageButton
-            android:id="@+id/btnSwitchCamera"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="8dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/app_name"
-            android:src="@drawable/ic_camera_flip" />
-    </LinearLayout>
-
-    <!-- AI Suggestion Bubble (Ví dụ: "AI gợi ý: Filter Sáng do thiếu sáng") -->
-    <LinearLayout
-        android:id="@+id/aiSuggestionBubble"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:background="@drawable/bg_glass_pill"
-        android:elevation="6dp"
-        android:gravity="center"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="6dp"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/topToolbar"
-        tools:visibility="visible">
-
-        <ImageView
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:contentDescription="@null"
-            android:src="@drawable/ic_sparkles" />
-
-        <TextView
-            android:id="@+id/tvAiSuggestion"
+        <!-- Filter Selection Carousel -->
+        <HorizontalScrollView
+            android:id="@+id/filterCarouselScroll"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:textColor="@color/accent_gold"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            tools:text="AI gợi ý: Filter Sáng (Khung hình tối)" />
-    </LinearLayout>
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bg_glass_pill"
+            android:elevation="8dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="6dp"
+            android:scrollbars="none"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@id/shutterSection"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            tools:visibility="visible">
 
-    <!-- Filter Selection Carousel (Floating glass container bo tròn) -->
-    <HorizontalScrollView
-        android:id="@+id/filterCarouselScroll"
+            <LinearLayout
+                android:id="@+id/filterChipContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <!-- Shutter Section (Nút chụp luôn chụp ngay không bị delay) -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/shutterSection"
+            android:layout_width="0dp"
+            android:layout_height="100dp"
+            android:layout_marginBottom="16dp"
+            android:paddingHorizontal="32dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <!-- Thumbnail ảnh mới chụp -->
+            <FrameLayout
+                android:id="@+id/btnQuickPreview"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_glass_circle"
+                android:elevation="6dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <ImageView
+                    android:id="@+id/ivQuickThumbnail"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/gallery_title"
+                    android:padding="2dp"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_gallery" />
+            </FrameLayout>
+
+            <!-- Shutter Button -->
+            <FrameLayout
+                android:id="@+id/btnShutter"
+                android:layout_width="76dp"
+                android:layout_height="76dp"
+                android:background="@drawable/bg_shutter_outer"
+                android:clickable="true"
+                android:elevation="10dp"
+                android:focusable="true"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <View
+                    android:id="@+id/shutterInnerCircle"
+                    android:layout_width="62dp"
+                    android:layout_height="62dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_shutter_inner" />
+            </FrameLayout>
+
+            <!-- Auto-Capture Indicator Badge (Chỉ hiện khi AI BẬT) -->
+            <LinearLayout
+                android:id="@+id/autoCaptureBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_glass_pill"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="6dp"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <View
+                    android:id="@+id/autoCaptureDot"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/bg_glass_circle"
+                    android:backgroundTint="@color/score_green" />
+
+                <TextView
+                    android:id="@+id/tvAutoCaptureStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="AUTO"
+                    android:textColor="@color/white_90"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- ================= 2. TAB THƯ VIỆN RIÊNG (DEDICATED GALLERY) ================= -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/galleryTabContainer"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/black"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavigationPill"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:visibility="gone">
+
+        <!-- Top Gallery Bar -->
+        <LinearLayout
+            android:id="@+id/galleryTopBar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="48dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="24dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:id="@+id/tvGalleryTabTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/gallery_title"
+                android:textColor="@color/white"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvGalleryCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_glass_pill"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="5dp"
+                android:textColor="@color/accent_gold"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                tools:text="14 ảnh" />
+        </LinearLayout>
+
+        <!-- Lưới thumbnail ảnh bo góc 18dp -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvGalleryGrid"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_marginTop="16dp"
+            android:clipToPadding="false"
+            android:paddingHorizontal="8dp"
+            android:paddingBottom="16dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/galleryTopBar" />
+
+        <!-- Trạng thái trống -->
+        <TextView
+            android:id="@+id/tvEmptyGallery"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/gallery_empty"
+            android:textColor="@color/white_50"
+            android:textSize="15sp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/galleryTopBar" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- ================= 3. FLOATING BOTTOM TAB PILL (MÁY ẢNH / THƯ VIỆN) ================= -->
+    <LinearLayout
+        android:id="@+id/bottomNavigationPill"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="50dp"
         android:layout_marginBottom="24dp"
         android:background="@drawable/bg_glass_pill"
-        android:elevation="8dp"
-        android:paddingHorizontal="10dp"
-        android:paddingVertical="6dp"
-        android:scrollbars="none"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/bottomBar"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        tools:visibility="visible">
-
-        <LinearLayout
-            android:id="@+id/filterChipContainer"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal" />
-    </HorizontalScrollView>
-
-    <!-- Bottom Floating Shutter & Gallery Controls (Floating Liquid Glass) -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/bottomBar"
-        android:layout_width="0dp"
-        android:layout_height="120dp"
-        android:layout_marginBottom="28dp"
-        android:paddingHorizontal="32dp"
+        android:elevation="12dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:padding="4dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <!-- Gallery / Recent Photo Preview Button -->
-        <FrameLayout
-            android:id="@+id/btnGallery"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
-            android:background="@drawable/bg_glass_circle"
-            android:elevation="6dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <ImageView
-                android:id="@+id/ivGalleryThumbnail"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/gallery_title"
-                android:padding="2dp"
-                android:scaleType="centerCrop"
-                android:src="@drawable/ic_gallery" />
-        </FrameLayout>
-
-        <!-- Main Shutter Button (Outer white ring + Inner circle) -->
-        <FrameLayout
-            android:id="@+id/btnShutter"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:background="@drawable/bg_shutter_outer"
-            android:clickable="true"
-            android:elevation="10dp"
-            android:focusable="true"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <View
-                android:id="@+id/shutterInnerCircle"
-                android:layout_width="66dp"
-                android:layout_height="66dp"
-                android:layout_gravity="center"
-                android:background="@drawable/bg_shutter_inner" />
-        </FrameLayout>
-
-        <!-- Auto-Capture Indicator Status Pill -->
-        <LinearLayout
-            android:id="@+id/autoCaptureBadge"
+        <TextView
+            android:id="@+id/tabBtnCamera"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_glass_pill"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_glass_pill_active"
             android:gravity="center"
-            android:orientation="horizontal"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="6dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            android:paddingHorizontal="20dp"
+            android:text="@string/tab_camera"
+            android:textColor="@color/accent_gold"
+            android:textSize="13sp"
+            android:textStyle="bold" />
 
-            <View
-                android:id="@+id/autoCaptureDot"
-                android:layout_width="8dp"
-                android:layout_height="8dp"
-                android:background="@drawable/bg_glass_circle"
-                android:backgroundTint="@color/score_green" />
+        <TextView
+            android:id="@+id/tabBtnGallery"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            android:gravity="center"
+            android:paddingHorizontal="20dp"
+            android:text="@string/tab_gallery"
+            android:textColor="@color/white_70"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
-            <TextView
-                android:id="@+id/tvAutoCaptureStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:text="AUTO"
-                android:textColor="@color/white_90"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!-- Permission Request Overlay Card (Liquid Glass card bo tròn 26dp) -->
+    <!-- Permission Request Overlay Card -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/permissionCard"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="32dp"
         android:background="@drawable/bg_glass_card"
-        android:elevation="16dp"
+        android:elevation="20dp"
         android:padding="28dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
