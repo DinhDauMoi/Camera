@@ -5,7 +5,8 @@
     <string name="storage_permission_rationale">Cần cấp quyền đọc ảnh để hiển thị hình ảnh trong Thư viện.</string>
     <string name="permission_grant_btn">Cho phép truy cập</string>
 
-    <!-- Hướng dẫn bố cục AI (Tiếng Việt) -->
+    <!-- Hướng dẫn bố cục AI 3 Bước (Tiếng Việt) -->
+    <string name="ai_scanning">Đang quét khung hình...</string>
     <string name="guide_perfect">Bố cục hoàn hảo! Giữ yên để chụp</string>
     <string name="guide_hold_straight">Giữ máy thẳng</string>
     <string name="guide_move_left">Dịch máy sang trái</string>
@@ -13,7 +14,7 @@
     <string name="guide_move_down">Hạ thấp máy xuống</string>
     <string name="guide_move_up">Nâng máy lên cao</string>
     <string name="guide_move_closer">Tiến lại gần chủ thể hơn</string>
-    <string name="guide_move_further">Lùi ra xa một chút</string>
+    <string name="guide_move_further">Lùi máy ra xa một chút</string>
     <string name="guide_searching">Đang tìm chủ thể...</string>
 
     <!-- Filters -->
@@ -32,6 +33,7 @@
     <string name="grid_off">Lưới 1/3: TẮT</string>
     <string name="auto_capture_on">Tự chụp: BẬT</string>
     <string name="auto_capture_off">Tự chụp: TẮT</string>
+    <string name="auto_zoom_title">Tự động zoom vừa khung</string>
     <string name="flash_auto">Flash Tự động</string>
     <string name="flash_on">Flash Bật</string>
     <string name="flash_off">Flash Tắt</string>

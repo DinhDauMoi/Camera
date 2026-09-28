@@ -2,7 +2,6 @@ package com.dinh.aicamera.ui
 
 import android.Manifest
 import android.content.ContentUris
-import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -26,6 +25,7 @@ import coil.transform.CircleCropTransformation
 import com.dinh.aicamera.R
 import com.dinh.aicamera.camera.CameraManager
 import com.dinh.aicamera.camera.FrameAnalyzer
+import com.dinh.aicamera.composition.AiStage
 import com.dinh.aicamera.composition.CompositionEngine
 import com.dinh.aicamera.composition.SensorOrientationHelper
 import com.dinh.aicamera.databinding.ActivityMainBinding
@@ -52,6 +52,7 @@ class MainActivity : AppCompatActivity() {
 
     private var currentRoll: Float = 0f
     private var currentPitch: Float = 0f
+    private var isDeviceSteady: Boolean = true
 
     private var activeFilter: FilterType = FilterType.NONE
     private var isCapturing: Boolean = false
@@ -93,19 +94,20 @@ class MainActivity : AppCompatActivity() {
         setupGalleryTab()
         checkCameraPermission()
 
-        // Tự động kiểm tra bản cập nhật mới trên GitHub (không spam)
         autoCheckAppUpdate()
     }
 
     private fun initAIEngines() {
-        compositionEngine = CompositionEngine()
-        compositionEngine.isAutoCaptureEnabled = preferences.isAutoCaptureEnabled
+        compositionEngine = CompositionEngine().apply {
+            isAutoCaptureEnabled = preferences.isAutoCaptureEnabled
+            isAutoZoomEnabled = preferences.isAutoZoomEnabled
+        }
 
         frameAnalyzer = FrameAnalyzer { subjectBox, isFace, avgLuminance ->
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
 
-                // Nếu AI TẮT: Bỏ qua mọi tính toán để máy chạy nhẹ nhất
+                // Nếu AI TẮT: Bỏ qua mọi phân tích để camera mượt và tiết kiệm pin tối đa
                 if (!preferences.isAiEnabled) {
                     return@runOnUiThread
                 }
@@ -120,48 +122,60 @@ class MainActivity : AppCompatActivity() {
                     screenHeight = screenH,
                     rollAngle = currentRoll,
                     pitchAngle = currentPitch,
+                    isDeviceSteady = isDeviceSteady,
                     onAutoCaptureTrigger = {
-                        // Tự động chụp chỉ kích hoạt khi AI đang BẬT
                         if (preferences.isAiEnabled) {
                             triggerShutterCapture(isAuto = true)
                         }
                     }
                 )
 
-                // Cập nhật AR overlay
+                // Cập nhật AR overlay (3 Bước: SCANNING -> GUIDING -> ALIGNED)
                 binding.compositionOverlay.updateState(state)
 
-                // Gợi ý filter thông minh
+                // BƯỚC 3: TỰ ĐỘNG ZOOM khi đã vào vùng đích (1.0x - 3.0x lerp mượt mà)
+                if (state.stage == AiStage.ALIGNED && state.shouldZoom) {
+                    cameraManager.setZoomRatio(state.targetZoomRatio)
+                }
+
+                // AI Gợi ý Filter (hiện dưới khung hình, không đè lên AR overlay)
                 evaluateAIFilterSuggestion(avgLuminance)
             }
         }
 
-        // Đồng bộ trạng thái AI mặc định TẮT
+        // Khởi tạo trạng thái mặc định
         frameAnalyzer.isAiEnabled = preferences.isAiEnabled
         binding.compositionOverlay.isAiEnabled = preferences.isAiEnabled
         binding.compositionOverlay.isGridEnabled = preferences.isGridEnabled
     }
 
     private fun setupSensors() {
-        sensorOrientationHelper = SensorOrientationHelper(this) { roll, pitch ->
+        sensorOrientationHelper = SensorOrientationHelper(this) { roll, pitch, isSteady ->
             currentRoll = roll
             currentPitch = pitch
+            isDeviceSteady = isSteady
         }
     }
 
     private fun setupUI() {
-        // Áp dụng Liquid Glass blur effect (Android 12+)
-        LiquidGlassHelper.applyBlurEffect(binding.topToolbar, 25f)
-        LiquidGlassHelper.applyBlurEffect(binding.bottomNavigationPill, 25f)
+        // Thiết lập Liquid Glass đúng chuẩn: clipToOutline = true, không làm mờ nút bấm
+        LiquidGlassHelper.setupGlassPill(binding.topToolbar)
+        LiquidGlassHelper.setupGlassPill(binding.bottomNavigationPill)
 
-        // 1. Nút Bật/Tắt AI (Mặc định TẮT theo yêu cầu)
+        // 1. Nút Bật/Tắt AI (Mặc định TẮT)
         updateAiToggleUI()
         binding.btnAiToggle.setOnClickListener {
             preferences.isAiEnabled = !preferences.isAiEnabled
             frameAnalyzer.isAiEnabled = preferences.isAiEnabled
             binding.compositionOverlay.isAiEnabled = preferences.isAiEnabled
-            updateAiToggleUI()
 
+            if (!preferences.isAiEnabled) {
+                // Tắt AI -> reset zoom về 1.0x ngay
+                cameraManager.resetZoom()
+                binding.aiSuggestionBubble.visibility = View.GONE
+            }
+
+            updateAiToggleUI()
             val msg = if (preferences.isAiEnabled) "Đã bật AI Hướng dẫn bố cục" else "Đã tắt AI - Trở về camera thường"
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
         }
@@ -174,40 +188,47 @@ class MainActivity : AppCompatActivity() {
             updateGridToggleUI()
         }
 
-        // 3. Nút chụp luôn chụp ngay lập tức
+        // 3. Chụp ảnh (Luôn chụp ngay lập tức không delay)
         binding.btnShutter.setOnClickListener {
             triggerShutterCapture(isAuto = false)
         }
 
-        // Đổi camera Trước / Sau
+        // 4. Đổi Camera Trước/Sau
         binding.btnSwitchCamera.setOnClickListener {
             animateButtonClick(it)
             cameraManager.switchCamera()
         }
 
-        // Chuyển đổi Flash
+        // 5. Chuyển đổi Flash
         binding.btnFlash.setOnClickListener {
             val mode = cameraManager.cycleFlashMode()
             updateFlashIcon(mode)
         }
 
-        // Cài đặt
+        // 6. Cài đặt (Bật/tắt tự động zoom, tự cập nhật)
         binding.btnSettings.setOnClickListener {
-            SettingsBottomSheetDialog.newInstance().show(supportFragmentManager, SettingsBottomSheetDialog.TAG)
+            val dialog = SettingsBottomSheetDialog.newInstance()
+            dialog.onAutoZoomToggled = { enabled ->
+                compositionEngine.isAutoZoomEnabled = enabled
+                if (!enabled) {
+                    cameraManager.resetZoom()
+                }
+            }
+            dialog.show(supportFragmentManager, SettingsBottomSheetDialog.TAG)
         }
 
-        // Mở Carousel chọn Filter
+        // 7. Mở Carousel chọn Filter
         binding.btnFilterToggle.setOnClickListener {
             val isVisible = binding.filterCarouselScroll.visibility == View.VISIBLE
             binding.filterCarouselScroll.visibility = if (isVisible) View.GONE else View.VISIBLE
         }
 
-        // Nút xem nhanh thư viện
+        // Xem nhanh ảnh vừa chụp
         binding.btnQuickPreview.setOnClickListener {
             switchTab(isCamera = false)
         }
 
-        // Chuyển đổi giữa 2 tab: Máy ảnh & Thư viện
+        // Chuyển tab Máy ảnh & Thư viện
         binding.tabBtnCamera.setOnClickListener {
             switchTab(isCamera = true)
         }
@@ -215,7 +236,7 @@ class MainActivity : AppCompatActivity() {
             switchTab(isCamera = false)
         }
 
-        // Nút cấp quyền camera
+        // Cấp quyền camera
         binding.btnGrantPermission.setOnClickListener {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
@@ -226,16 +247,12 @@ class MainActivity : AppCompatActivity() {
     private fun updateAiToggleUI() {
         val isEnabled = preferences.isAiEnabled
         if (isEnabled) {
-            binding.btnAiToggle.setImageResource(R.drawable.ic_sparkles)
             binding.btnAiToggle.setColorFilter(ContextCompat.getColor(this, R.color.accent_gold))
-            binding.btnAiToggle.setBackgroundResource(R.drawable.bg_glass_pill_active)
             if (preferences.isAutoCaptureEnabled) {
                 binding.autoCaptureBadge.visibility = View.VISIBLE
             }
         } else {
-            binding.btnAiToggle.setImageResource(R.drawable.ic_sparkles)
             binding.btnAiToggle.setColorFilter(ContextCompat.getColor(this, R.color.white_50))
-            binding.btnAiToggle.setBackgroundResource(R.drawable.bg_glass_circle)
             binding.autoCaptureBadge.visibility = View.GONE
             binding.aiSuggestionBubble.visibility = View.GONE
         }
@@ -305,7 +322,6 @@ class MainActivity : AppCompatActivity() {
             galleryAdapter.updateList(list)
             updateGalleryCount()
 
-            // Cập nhật nút xem nhanh
             if (list.isNotEmpty()) {
                 binding.ivQuickThumbnail.load(list.first()) {
                     transformations(CircleCropTransformation())
@@ -380,8 +396,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun selectFilter(filter: FilterType) {
         activeFilter = filter
-        binding.tvCurrentFilterName.setText(filter.titleRes)
-
         for (i in 0 until binding.filterChipContainer.childCount) {
             val child = binding.filterChipContainer.getChildAt(i) as TextView
             val f = FilterType.values()[i]
@@ -478,7 +492,6 @@ class MainActivity : AppCompatActivity() {
             crossfade(true)
         }
 
-        // Chèn vào đầu danh sách gallery
         galleryUris.add(0, uri)
         galleryAdapter.notifyItemInserted(0)
         updateGalleryCount()

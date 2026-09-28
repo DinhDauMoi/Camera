@@ -53,6 +53,9 @@ class CameraManager(
 
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
+    // Smooth Zoom state
+    private var currentZoomRatio: Float = 1.0f
+
     fun startCamera(onReady: () -> Unit = {}) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
@@ -97,6 +100,9 @@ class CameraManager(
                 imageCapture,
                 imageAnalysis
             )
+            // Khởi tạo zoom về 1.0x
+            currentZoomRatio = 1.0f
+            camera?.cameraControl?.setZoomRatio(1.0f)
         } catch (exc: Exception) {
             Log.e("CameraManager", "Use case binding failed", exc)
         }
@@ -124,6 +130,29 @@ class CameraManager(
     }
 
     fun getFlashMode(): Int = flashMode
+
+    // Zoom controls (1.0x - 3.0x lerp mượt mà)
+    fun setZoomRatio(targetRatio: Float) {
+        val clamped = targetRatio.coerceIn(1.0f, 3.0f)
+        // Lerp mượt để chống giật hình
+        currentZoomRatio += 0.15f * (clamped - currentZoomRatio)
+        try {
+            camera?.cameraControl?.setZoomRatio(currentZoomRatio)
+        } catch (e: Exception) {
+            // Thiết bị không hỗ trợ mức zoom này
+        }
+    }
+
+    fun resetZoom() {
+        currentZoomRatio = 1.0f
+        try {
+            camera?.cameraControl?.setZoomRatio(1.0f)
+        } catch (e: Exception) {
+            // Ignore
+        }
+    }
+
+    fun getZoomRatio(): Float = currentZoomRatio
 
     /**
      * Chụp ảnh và lưu vào MediaStore (Pictures/AICamera), hỗ trợ nướng filter trực tiếp
@@ -180,7 +209,6 @@ class CameraManager(
         displayName: String,
         filter: FilterType
     ): Uri {
-        // Đọc EXIF xoay ảnh cho chuẩn xác
         val exif = ExifInterface(tempFile.absolutePath)
         val orientation = exif.getAttributeInt(
             ExifInterface.TAG_ORIENTATION,
@@ -195,7 +223,6 @@ class CameraManager(
 
         var bitmap = BitmapFactory.decodeFile(tempFile.absolutePath)
 
-        // Xoay bitmap nếu cần
         if (rotationDegrees != 0f) {
             val matrix = Matrix().apply { postRotate(rotationDegrees) }
             val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
@@ -203,7 +230,6 @@ class CameraManager(
             bitmap = rotated
         }
 
-        // Lật gương nếu là camera trước
         if (lensFacing == CameraSelector.LENS_FACING_FRONT) {
             val mirrorMatrix = Matrix().apply { postScale(-1f, 1f) }
             val mirrored = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, mirrorMatrix, true)
@@ -211,14 +237,12 @@ class CameraManager(
             bitmap = mirrored
         }
 
-        // Áp dụng bộ lọc ColorMatrix nếu có
         if (filter != FilterType.NONE) {
             val filtered = ColorMatrixFilter.applyFilterToBitmap(bitmap, filter)
             bitmap.recycle()
             bitmap = filtered
         }
 
-        // Chuẩn bị lưu vào MediaStore
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "$displayName.jpg")
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")

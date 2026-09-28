@@ -22,6 +22,8 @@ class SettingsBottomSheetDialog : BottomSheetDialogFragment() {
     private lateinit var preferences: AppPreferences
     private lateinit var updateManager: AppUpdateManager
 
+    var onAutoZoomToggled: ((Boolean) -> Unit)? = null
+
     override fun getTheme(): Int = R.style.Theme_AICamera_BottomSheetDialog
 
     override fun onCreateView(
@@ -38,6 +40,14 @@ class SettingsBottomSheetDialog : BottomSheetDialogFragment() {
         preferences = AppPreferences(requireContext())
         updateManager = AppUpdateManager(requireContext())
 
+        // Toggle Tự động zoom vừa khung (mặc định bật)
+        binding.switchAutoZoom.isChecked = preferences.isAutoZoomEnabled
+        binding.switchAutoZoom.setOnCheckedChangeListener { _, isChecked ->
+            preferences.isAutoZoomEnabled = isChecked
+            onAutoZoomToggled?.invoke(isChecked)
+        }
+
+        // Toggle Tự động kiểm tra bản cập nhật
         binding.switchAutoUpdate.isChecked = preferences.isAutoCheckUpdate
         binding.switchAutoUpdate.setOnCheckedChangeListener { _, isChecked ->
             preferences.isAutoCheckUpdate = isChecked

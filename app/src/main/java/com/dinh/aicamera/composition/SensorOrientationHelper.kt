@@ -5,12 +5,11 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import kotlin.math.atan2
-import kotlin.math.sqrt
+import kotlin.math.abs
 
 class SensorOrientationHelper(
     context: Context,
-    private val onOrientationChanged: (roll: Float, pitch: Float) -> Unit
+    private val onOrientationChanged: (roll: Float, pitch: Float, isSteady: Boolean) -> Unit
 ) : SensorEventListener {
 
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
@@ -22,6 +21,10 @@ class SensorOrientationHelper(
     private var smoothedRoll = 0f
     private var smoothedPitch = 0f
     private val smoothingFactor = 0.2f
+
+    private var lastRoll = 0f
+    private var lastPitch = 0f
+    private var isSteady = true
 
     fun start() {
         rotationVectorSensor?.let { sensor ->
@@ -39,15 +42,20 @@ class SensorOrientationHelper(
             SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
             SensorManager.getOrientation(rotationMatrix, orientationAngles)
 
-            // azimuth = orientationAngles[0], pitch = orientationAngles[1], roll = orientationAngles[2]
             val pitchDeg = Math.toDegrees(orientationAngles[1].toDouble()).toFloat()
             val rollDeg = Math.toDegrees(orientationAngles[2].toDouble()).toFloat()
 
-            // Lọc làm mượt (EMA) để tránh rung giật
+            // Kiểm tra tốc độ lia máy để tránh zoom giật hình
+            val delta = abs(rollDeg - lastRoll) + abs(pitchDeg - lastPitch)
+            isSteady = delta < 1.8f
+            lastRoll = rollDeg
+            lastPitch = pitchDeg
+
+            // Lọc làm mượt (EMA)
             smoothedRoll += smoothingFactor * (rollDeg - smoothedRoll)
             smoothedPitch += smoothingFactor * (pitchDeg - smoothedPitch)
 
-            onOrientationChanged(smoothedRoll, smoothedPitch)
+            onOrientationChanged(smoothedRoll, smoothedPitch, isSteady)
         }
     }
 

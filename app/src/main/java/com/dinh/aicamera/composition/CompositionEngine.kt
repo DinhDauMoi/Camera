@@ -7,10 +7,12 @@ import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sqrt
 
 class CompositionEngine {
 
     var isAutoCaptureEnabled: Boolean = true
+    var isAutoZoomEnabled: Boolean = true
 
     private var highQualityStartTime: Long = 0L
     private var isTriggeredForCurrentLock: Boolean = false
@@ -23,6 +25,7 @@ class CompositionEngine {
         screenHeight: Float,
         rollAngle: Float,
         pitchAngle: Float,
+        isDeviceSteady: Boolean,
         onAutoCaptureTrigger: () -> Unit
     ): CompositionState {
         if (screenWidth <= 0f || screenHeight <= 0f) {
@@ -37,17 +40,15 @@ class CompositionEngine {
         val thirdsH = floatArrayOf(y1, y2)
         val thirdsV = floatArrayOf(x1, x2)
 
+        // BƯỚC 1: Đang quét khung hình (chưa có chủ thể cố định)
         if (subjectBox == null || subjectBox.isEmpty) {
-            // Không có chủ thể: Chỉ chấm điểm cân bằng máy
             resetAutoCapture()
-            val balanceScore = calculateBalanceScore(rollAngle)
-            val guide = if (abs(rollAngle) > 2.5f) "Giữ máy thẳng" else "Đang tìm chủ thể..."
             return CompositionState(
+                stage = AiStage.SCANNING,
                 hasSubject = false,
                 rollAngle = rollAngle,
                 pitchAngle = pitchAngle,
-                score = (balanceScore * 0.4f).toInt(),
-                guidanceText = guide,
+                guidanceText = "Đang quét khung hình...",
                 gridThirdsHorizontal = thirdsH,
                 gridThirdsVertical = thirdsV
             )
@@ -55,9 +56,8 @@ class CompositionEngine {
 
         val subjectCenter = PointF(subjectBox.centerX(), subjectBox.centerY())
 
-        // 4 giao điểm 1/3 (Power Points)
+        // 4 giao điểm 1/3 (ưu tiên đường 1/3 trên cho mặt người)
         val intersectionPoints = if (isFace) {
-            // Với chân dung người, ưu tiên đường 1/3 phía trên (tầm mắt)
             listOf(
                 PointF(x1, y1),
                 PointF(x2, y1),
@@ -73,7 +73,7 @@ class CompositionEngine {
             )
         }
 
-        // Tìm điểm 1/3 gần chủ thể nhất
+        // BƯỚC 2: Chọn 1 điểm đích 1/3 lý tưởng gần chủ thể nhất
         var targetPoint = intersectionPoints.first()
         var minDistance = Float.MAX_VALUE
         for (pt in intersectionPoints) {
@@ -84,62 +84,89 @@ class CompositionEngine {
             }
         }
 
-        // 1. Điểm khoảng cách tới giao điểm 1/3 (Tối đa 45 điểm)
         val maxDiag = hypot(screenWidth, screenHeight)
-        val normalizedDist = minDistance / maxDiag
-        val proximityScore = max(0f, 45f * (1f - (normalizedDist / 0.35f)))
+        val distanceRatio = minDistance / maxDiag
 
-        // 2. Điểm cân bằng máy (Tối đa 35 điểm)
-        val balanceScore = calculateBalanceScore(rollAngle)
-
-        // 3. Điểm kích thước & viền (Tối đa 20 điểm cơ bản, có trừ điểm vi phạm)
-        var framingScore = 20f
+        // Ngưỡng xác định chủ thể đã vào vùng đích (<= 14% đường chéo)
+        val isAligned = distanceRatio <= 0.14f
 
         val frameArea = screenWidth * screenHeight
         val subjectArea = subjectBox.width() * subjectBox.height()
         val areaRatio = subjectArea / frameArea
 
-        // Trừ điểm nếu bị cắt viền (chạm sát mép màn hình < 3%)
+        // BƯỚC 2: Đang dẫn hướng (GUIDING) — User lia máy đưa điểm đích về chủ thể
+        if (!isAligned) {
+            resetAutoCapture()
+            val guide = generateDirectionalGuidance(
+                rollAngle = rollAngle,
+                subjectCenter = subjectCenter,
+                targetPoint = targetPoint,
+                screenWidth = screenWidth,
+                screenHeight = screenHeight
+            )
+
+            return CompositionState(
+                stage = AiStage.GUIDING,
+                hasSubject = true,
+                isFace = isFace,
+                subjectBounds = subjectBox,
+                subjectCenter = subjectCenter,
+                targetPoint = targetPoint,
+                distanceToTarget = minDistance,
+                rollAngle = rollAngle,
+                pitchAngle = pitchAngle,
+                score = 0, // Chưa hiện điểm số khi đang lia máy
+                guidanceText = guide,
+                targetZoomRatio = 1.0f,
+                shouldZoom = false,
+                gridThirdsHorizontal = thirdsH,
+                gridThirdsVertical = thirdsV
+            )
+        }
+
+        // BƯỚC 3: ĐÃ VÀO VÙNG ĐÍCH (ALIGNED)
+        // 1. Tính toán Tự động Zoom (1.0x - 3.0x) để vừa khung
+        var targetZoom = 1.0f
+        var shouldZoom = false
+        var isTooLarge = false
+
+        if (areaRatio > 0.60f) {
+            // Chủ thể quá to -> không zoom dưới 1.0x mà gợi ý lùi máy ra
+            isTooLarge = true
+            targetZoom = 1.0f
+        } else if (areaRatio < 0.18f && isAutoZoomEnabled && isDeviceSteady) {
+            // Chủ thể nhỏ -> tự động zoom tăng dần để vừa vặn khung hình
+            val desiredScale = sqrt(0.24f / max(0.03f, areaRatio))
+            targetZoom = desiredScale.coerceIn(1.0f, 3.0f)
+            shouldZoom = true
+        }
+
+        // 2. Chấm điểm bố cục (0 - 100)
+        val proximityScore = max(0f, 45f * (1f - (distanceRatio / 0.14f)))
+        val balanceScore = calculateBalanceScore(rollAngle)
+
+        var framingScore = 20f
         val margin = min(screenWidth, screenHeight) * 0.035f
         val touchesEdge = subjectBox.left < margin ||
                 subjectBox.top < margin ||
                 subjectBox.right > (screenWidth - margin) ||
                 subjectBox.bottom > (screenHeight - margin)
-        if (touchesEdge) {
-            framingScore -= 18f
-        }
-
-        // Trừ điểm nếu chủ thể đặt chết ở chính giữa (dead-center, vi phạm 1/3)
-        val cxRel = subjectCenter.x / screenWidth
-        val cyRel = subjectCenter.y / screenHeight
-        val isDeadCenter = cxRel in 0.42f..0.58f && cyRel in 0.42f..0.58f
-        if (isDeadCenter) {
-            framingScore -= 12f
-        }
-
-        // Trừ điểm nếu quá nhỏ hoặc quá to
-        val isTooSmall = areaRatio < 0.035f
-        val isTooLarge = areaRatio > 0.75f
-        if (isTooSmall) framingScore -= 12f
+        if (touchesEdge) framingScore -= 18f
         if (isTooLarge) framingScore -= 12f
 
         val rawTotal = (proximityScore + balanceScore + framingScore).toInt()
         val totalScore = min(100, max(0, rawTotal))
 
-        // Tạo câu gợi ý tiếng Việt thông minh
-        val guidance = generateGuidance(
-            rollAngle = rollAngle,
-            subjectCenter = subjectCenter,
-            targetPoint = targetPoint,
-            isTooSmall = isTooSmall,
-            isTooLarge = isTooLarge,
-            touchesEdge = touchesEdge,
-            score = totalScore,
-            screenWidth = screenWidth,
-            screenHeight = screenHeight
-        )
+        // 3. Thông điệp gợi ý bước 3
+        val guidance = when {
+            totalScore >= 85 -> "Bố cục hoàn hảo! Giữ yên để chụp"
+            isTooLarge -> "Lùi máy ra xa một chút"
+            abs(rollAngle) > 2.5f -> "Giữ máy thẳng"
+            touchesEdge -> "Chủ thể sát viền, dịch máy ra giữa"
+            else -> "Căn chỉnh thêm một chút..."
+        }
 
-        // Xử lý tự động chụp (khi điểm > 85 duy trì 1s)
+        // 4. Xử lý giữ yên 1 giây để tự động chụp
         var autoCaptureReady = false
         var autoProgress = 0f
 
@@ -163,6 +190,7 @@ class CompositionEngine {
         }
 
         return CompositionState(
+            stage = AiStage.ALIGNED,
             hasSubject = true,
             isFace = isFace,
             subjectBounds = subjectBox,
@@ -175,6 +203,8 @@ class CompositionEngine {
             guidanceText = guidance,
             isAutoCaptureReady = autoCaptureReady,
             autoCaptureProgress = autoProgress,
+            targetZoomRatio = targetZoom,
+            shouldZoom = shouldZoom,
             gridThirdsHorizontal = thirdsH,
             gridThirdsVertical = thirdsV
         )
@@ -191,31 +221,15 @@ class CompositionEngine {
         }
     }
 
-    private fun generateGuidance(
+    private fun generateDirectionalGuidance(
         rollAngle: Float,
         subjectCenter: PointF,
         targetPoint: PointF,
-        isTooSmall: Boolean,
-        isTooLarge: Boolean,
-        touchesEdge: Boolean,
-        score: Int,
         screenWidth: Float,
         screenHeight: Float
     ): String {
-        if (score >= 85) {
-            return "Bố cục hoàn hảo! Giữ yên để chụp"
-        }
-        if (abs(rollAngle) > 2.8f) {
+        if (abs(rollAngle) > 3.0f) {
             return "Giữ máy thẳng"
-        }
-        if (touchesEdge) {
-            return "Chủ thể sát viền, dịch máy ra giữa"
-        }
-        if (isTooSmall) {
-            return "Tiến lại gần chủ thể hơn"
-        }
-        if (isTooLarge) {
-            return "Lùi ra xa một chút"
         }
 
         val dx = targetPoint.x - subjectCenter.x
@@ -230,7 +244,7 @@ class CompositionEngine {
             abs(dy) > thresholdY -> {
                 if (dy > 0) "Hạ thấp máy xuống" else "Nâng máy lên cao"
             }
-            else -> "Căn chỉnh thêm một chút..."
+            else -> "Đang đưa chủ thể vào vùng đích..."
         }
     }
 

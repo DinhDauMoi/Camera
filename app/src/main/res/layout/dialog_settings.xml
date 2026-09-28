@@ -43,20 +43,51 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@id/tvSettingsTitle" />
 
+    <!-- Setting: Auto Zoom (Tự động zoom vừa khung hình) -->
+    <LinearLayout
+        android:id="@+id/rowAutoZoom"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/bg_glass_pill"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="10dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvSettingsTitle">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/auto_zoom_title"
+            android:textColor="@color/white"
+            android:textSize="14sp" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/switchAutoZoom"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:thumbTint="@color/accent_gold"
+            app:trackTint="@color/white_20" />
+    </LinearLayout>
+
     <!-- Setting: Auto update check -->
     <LinearLayout
         android:id="@+id/rowAutoUpdate"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="12dp"
         android:background="@drawable/bg_glass_pill"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
+        android:paddingVertical="10dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvSettingsTitle">
+        app:layout_constraintTop_toBottomOf="@id/rowAutoZoom">
 
         <TextView
             android:layout_width="0dp"
@@ -95,7 +126,7 @@
         android:id="@+id/tvAppVersionInfo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="18dp"
         android:textColor="@color/white_50"
         android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent"
