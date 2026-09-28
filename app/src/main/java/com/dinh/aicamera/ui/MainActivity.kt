@@ -2,6 +2,7 @@ package com.dinh.aicamera.ui
 
 import android.Manifest
 import android.content.ContentUris
+import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
