@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Liquid Glass Dark & Accent Palette -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="white_90">#E6FFFFFF</color>
+    <color name="white_70">#B3FFFFFF</color>
+    <color name="white_50">#80FFFFFF</color>
+    <color name="white_20">#33FFFFFF</color>
+    <color name="white_10">#1AFFFFFF</color>
+
+    <!-- Liquid Glass Surface & Strokes -->
+    <color name="glass_surface">#2E1E2638</color>
+    <color name="glass_surface_light">#26FFFFFF</color>
+    <color name="glass_surface_dark">#800A0D14</color>
+    <color name="glass_stroke">#33FFFFFF</color>
+    <color name="glass_stroke_bright">#66FFFFFF</color>
+
+    <!-- Single Accent Color: Golden Amber (Kiểu Doka Cam / Leica) -->
+    <color name="accent_gold">#FFB800</color>
+    <color name="accent_gold_glow">#40FFB800</color>
+
+    <!-- Score & Guide Colors -->
+    <color name="score_green">#00E676</color>
+    <color name="score_yellow">#FFD600</color>
+    <color name="score_orange">#FF9100</color>
+    <color name="score_red">#FF5252</color>
+
+    <!-- Overlay & Grid -->
+    <color name="grid_line">#38FFFFFF</color>
+    <color name="target_ring">#FFB800</color>
+    <color name="subject_box">#99FFFFFF</color>
+    <color name="subject_box_aligned">#FFB800</color>
+</resources>

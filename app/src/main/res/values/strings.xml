@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AI Camera</string>
+    <string name="camera_permission_rationale">AI Camera cần quyền truy cập Camera để phân tích bố cục realtime và chụp ảnh.</string>
+    <string name="permission_grant_btn">Cho phép Camera</string>
+
+    <!-- Hướng dẫn bố cục AI (Tiếng Việt) -->
+    <string name="guide_perfect">Bố cục hoàn hảo! Giữ yên để chụp</string>
+    <string name="guide_hold_straight">Giữ máy thẳng</string>
+    <string name="guide_move_left">Dịch máy sang trái</string>
+    <string name="guide_move_right">Dịch máy sang phải</string>
+    <string name="guide_move_down">Hạ thấp máy xuống</string>
+    <string name="guide_move_up">Nâng máy lên cao</string>
+    <string name="guide_move_closer">Tiến lại gần chủ thể hơn</string>
+    <string name="guide_move_further">Lùi ra xa một chút</string>
+    <string name="guide_searching">Đang tìm chủ thể...</string>
+
+    <!-- Filters -->
+    <string name="filter_none">Gốc</string>
+    <string name="filter_bright">Sáng</string>
+    <string name="filter_muted">Trầm</string>
+    <string name="filter_bw">Đen trắng</string>
+    <string name="filter_warm">Ấm</string>
+    <string name="filter_cool">Lạnh</string>
+    <string name="filter_film">Film</string>
+
+    <!-- Tự động chụp & Flash -->
+    <string name="auto_capture_on">Tự chụp: BẬT</string>
+    <string name="auto_capture_off">Tự chụp: TẮT</string>
+    <string name="flash_auto">Flash Tự động</string>
+    <string name="flash_on">Flash Bật</string>
+    <string name="flash_off">Flash Tắt</string>
+
+    <string name="photo_saved">Đã lưu ảnh vào Thư viện</string>
+    <string name="gallery_title">Ảnh vừa chụp</string>
+    <string name="gallery_empty">Chưa có ảnh nào được chụp</string>
+</resources>
