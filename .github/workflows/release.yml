@@ -54,8 +54,11 @@ jobs:
           name: Lievis Cam ${{ github.ref_name }}
           files: release-assets/LievisCam-${{ github.ref_name }}.apk
           body: |
-            - Fix lỗi không cài đè được (đổi sang chữ ký cố định)
-            - QUAN TRỌNG: gỡ bản cũ rồi cài mới 1 lần duy nhất, các bản sau cập nhật bình thường
+            - Preset zoom 0.5x, 1x, 3x, 6x và pinch-to-zoom 2 ngón
+            - Chuyển zoom mượt mà, ưu tiên zoom thủ công hơn AI
+            - Chống rung/giật hình: liên tục lấy nét, deadband auto-zoom, tap-to-focus
+            - Bật/tắt lưới 1/3 độc lập với AI
+            - Bỏ tab Thư viện cho giao diện gọn gàng, xem nhanh ảnh vừa chụp
           generate_release_notes: false
           draft: false
           prerelease: false
