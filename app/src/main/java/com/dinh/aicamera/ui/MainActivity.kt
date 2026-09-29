@@ -29,6 +29,7 @@ import com.dinh.aicamera.camera.FrameAnalyzer
 import com.dinh.aicamera.composition.AiStage
 import com.dinh.aicamera.composition.CompositionEngine
 import com.dinh.aicamera.composition.SensorOrientationHelper
+import com.dinh.aicamera.composition.SubjectTracker
 import com.dinh.aicamera.databinding.ActivityMainBinding
 import com.dinh.aicamera.filter.AIFilterRecommender
 import com.dinh.aicamera.filter.FilterType
@@ -51,6 +52,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var frameAnalyzer: FrameAnalyzer
     private lateinit var compositionEngine: CompositionEngine
     private lateinit var sensorOrientationHelper: SensorOrientationHelper
+    private var subjectTracker: SubjectTracker? = null
 
     private var currentRoll: Float = 0f
     private var currentPitch: Float = 0f
@@ -118,9 +120,15 @@ class MainActivity : AppCompatActivity() {
                 val screenW = binding.previewView.width.toFloat()
                 val screenH = binding.previewView.height.toFloat()
 
+                val tracker = subjectTracker?.takeIf {
+                    // recreate nếu kích thước preview đổi (xoay màn hình)
+                    it.screenWidth == screenW && it.screenHeight == screenH
+                } ?: SubjectTracker(screenW, screenH).also { subjectTracker = it }
+                val tracked = tracker.update(subjectBox, isFace)
+
                 val state = compositionEngine.evaluate(
-                    subjectBox = subjectBox,
-                    isFace = isFace,
+                    subjectBox = tracked?.box,
+                    isFace = tracked?.isFace ?: false,
                     screenWidth = screenW,
                     screenHeight = screenH,
                     rollAngle = currentRoll,
@@ -177,6 +185,7 @@ class MainActivity : AppCompatActivity() {
             preferences.isAiEnabled = !preferences.isAiEnabled
             frameAnalyzer.isAiEnabled = preferences.isAiEnabled
             binding.compositionOverlay.isAiEnabled = preferences.isAiEnabled
+            subjectTracker?.reset()
 
             if (!preferences.isAiEnabled) {
                 // Tắt AI -> reset zoom về 1.0x ngay

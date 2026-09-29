@@ -8,8 +8,6 @@ import androidx.annotation.OptIn
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
-import com.dinh.aicamera.composition.SubjectTracker
-import com.dinh.aicamera.composition.TrackedSubject
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
@@ -44,25 +42,12 @@ class FrameAnalyzer(
 
     // View dimensions for coordinate scaling
     var previewViewWidth: Int = 1080
-        set(value) {
-            field = value
-            updateSubjectTracker()
-        }
     var previewViewHeight: Int = 1920
-        set(value) {
-            field = value
-            updateSubjectTracker()
-        }
 
-    private var subjectTracker = SubjectTracker(previewViewWidth.toFloat(), previewViewHeight.toFloat())
-
-    // 1 frame chạy AI, 1 frame bỏ qua (chỉ cập nhật box từ frame trước) -> giảm 50% tải CPU/GPU
+    // 1 frame chạy AI, 1 frame bỏ qua (trả lại kết quả từ frame trước) -> giảm 50% tải CPU/GPU
     private var frameCount: Long = 0L
-    private var lastTrackedSubject: TrackedSubject? = null
-
-    private fun updateSubjectTracker() {
-        subjectTracker = SubjectTracker(previewViewWidth.toFloat(), previewViewHeight.toFloat())
-    }
+    private var lastCandidateBox: RectF? = null
+    private var lastIsFace: Boolean = false
 
     @OptIn(ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
@@ -83,8 +68,8 @@ class FrameAnalyzer(
 
         // Nếu AI TẮT: Dừng ngay mọi xử lý, trả về khung trống, tiết kiệm pin tuyệt đối
         if (!isAiEnabled) {
-            subjectTracker.reset()
-            lastTrackedSubject = null
+            lastCandidateBox = null
+            lastIsFace = false
             onFrameAnalyzed(null, false, avgLuminance)
             isProcessing.set(false)
             imageProxy.close()
@@ -94,7 +79,7 @@ class FrameAnalyzer(
         // Nhịp chạy: 1 frame chạy AI, 1 frame bỏ qua (trả lại kết quả frame trước)
         val currentFrame = frameCount++
         if (currentFrame % 2L != 0L) {
-            onFrameAnalyzed(lastTrackedSubject?.box, lastTrackedSubject?.isFace ?: false, avgLuminance)
+            onFrameAnalyzed(lastCandidateBox, lastIsFace, avgLuminance)
             isProcessing.set(false)
             imageProxy.close()
             return
@@ -113,11 +98,10 @@ class FrameAnalyzer(
                         mapFaceBoxToPreviewCoordinates(box, imageProxy.width, imageProxy.height, rotationDegrees)
                     }
 
-                    // Chốt và làm mượt qua SubjectTracker
-                    val tracked = subjectTracker.update(mappedFaceBox, isFace = true)
-                    lastTrackedSubject = tracked
+                    lastCandidateBox = mappedFaceBox
+                    lastIsFace = true
 
-                    onFrameAnalyzed(tracked?.box, tracked?.isFace ?: true, avgLuminance)
+                    onFrameAnalyzed(mappedFaceBox, true, avgLuminance)
                     isProcessing.set(false)
                     imageProxy.close()
                 } else {
@@ -149,19 +133,19 @@ class FrameAnalyzer(
                     mapUprightBoxToPreviewCoordinates(it.box, uprightW, uprightH)
                 }
 
-                val tracked = subjectTracker.update(mappedObjBox, isFace = false)
-                lastTrackedSubject = tracked
+                lastCandidateBox = mappedObjBox
+                lastIsFace = false
 
-                onFrameAnalyzed(tracked?.box, tracked?.isFace ?: false, avgLuminance)
+                onFrameAnalyzed(mappedObjBox, false, avgLuminance)
             } else {
-                val tracked = subjectTracker.update(null, isFace = false)
-                lastTrackedSubject = tracked
-                onFrameAnalyzed(tracked?.box, tracked?.isFace ?: false, avgLuminance)
+                lastCandidateBox = null
+                lastIsFace = false
+                onFrameAnalyzed(null, false, avgLuminance)
             }
         } catch (e: Throwable) {
-            val tracked = subjectTracker.update(null, isFace = false)
-            lastTrackedSubject = tracked
-            onFrameAnalyzed(tracked?.box, tracked?.isFace ?: false, avgLuminance)
+            lastCandidateBox = null
+            lastIsFace = false
+            onFrameAnalyzed(null, false, avgLuminance)
         } finally {
             isProcessing.set(false)
             imageProxy.close()

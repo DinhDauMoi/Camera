@@ -18,6 +18,8 @@ class CompositionEngine {
     private var isTriggeredForCurrentLock: Boolean = false
     private val requiredHoldTimeMs = 1000L // Duy trì 1 giây điểm > 85
     private var lastLoggedStage: AiStage? = null
+    private var lockedTargetPoint: PointF? = null
+    private var anchorSubjectCenter: PointF? = null
 
     private fun logStageChange(newStage: AiStage, details: String) {
         if (newStage != lastLoggedStage) {

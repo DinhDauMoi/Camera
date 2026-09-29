@@ -12,8 +12,8 @@ data class TrackedSubject(
  * SubjectTracker: Chốt chủ thể và làm mượt tọa độ, chống nhảy box/vòng tròn
  */
 class SubjectTracker(
-    private val screenWidth: Float,
-    private val screenHeight: Float
+    val screenWidth: Float,
+    val screenHeight: Float
 ) {
     private var isLocked: Boolean = false
     private var candidateConsecutiveFrames: Int = 0
