@@ -43,6 +43,10 @@ jobs:
         with:
           name: AI Camera ${{ github.ref_name }}
           files: release-assets/AICamera-${{ github.ref_name }}.apk
-          generate_release_notes: true
+          body: |
+            - Sửa dialog cập nhật hiển thị đúng kích thước
+            - Changelog hiện chữ sạch, dễ đọc
+            - Các fix trước: lỗi chụp, vòng tròn AI kiểu Doka, flash
+          generate_release_notes: false
           draft: false
           prerelease: false
