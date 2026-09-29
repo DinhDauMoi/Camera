@@ -160,48 +160,54 @@ class CameraManager(
     fun takePhoto(
         currentFilter: FilterType,
         onSuccess: (Uri) -> Unit,
-        onError: (Exception) -> Unit
+        onError: (Throwable) -> Unit
     ) {
-        val capture = imageCapture ?: run {
-            onError(IllegalStateException("Camera chưa sẵn sàng"))
-            return
-        }
+        try {
+            val capture = imageCapture ?: run {
+                onError(IllegalStateException("Camera chưa sẵn sàng"))
+                return
+            }
 
-        val name = SimpleDateFormat("AICAM_yyyyMMdd_HHmmss", Locale.US)
-            .format(System.currentTimeMillis())
+            val name = SimpleDateFormat("AICAM_yyyyMMdd_HHmmss", Locale.US)
+                .format(System.currentTimeMillis())
 
-        val tempFile = File.createTempFile("temp_cam_", ".jpg", context.cacheDir)
-        val outputOptions = ImageCapture.OutputFileOptions.Builder(tempFile).build()
+            val tempFile = File.createTempFile("temp_cam_", ".jpg", context.cacheDir)
+            val outputOptions = ImageCapture.OutputFileOptions.Builder(tempFile).build()
 
-        capture.takePicture(
-            outputOptions,
-            cameraExecutor,
-            object : ImageCapture.OnImageSavedCallback {
-                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val savedUri = processAndSaveToMediaStore(tempFile, name, currentFilter)
-                            tempFile.delete()
-                            withContext(Dispatchers.Main) {
-                                onSuccess(savedUri)
-                            }
-                        } catch (e: Exception) {
-                            tempFile.delete()
-                            withContext(Dispatchers.Main) {
-                                onError(e)
+            capture.takePicture(
+                outputOptions,
+                cameraExecutor,
+                object : ImageCapture.OnImageSavedCallback {
+                    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                val savedUri = processAndSaveToMediaStore(tempFile, name, currentFilter)
+                                tempFile.delete()
+                                withContext(Dispatchers.Main) {
+                                    onSuccess(savedUri)
+                                }
+                            } catch (t: Throwable) {
+                                Log.e("CameraManager", "Lỗi xử lý và lưu ảnh", t)
+                                tempFile.delete()
+                                withContext(Dispatchers.Main) {
+                                    onError(t)
+                                }
                             }
                         }
                     }
-                }
 
-                override fun onError(exception: ImageCaptureException) {
-                    tempFile.delete()
-                    ContextCompat.getMainExecutor(context).execute {
-                        onError(exception)
+                    override fun onError(exception: ImageCaptureException) {
+                        tempFile.delete()
+                        ContextCompat.getMainExecutor(context).execute {
+                            onError(exception)
+                        }
                     }
                 }
-            }
-        )
+            )
+        } catch (t: Throwable) {
+            Log.e("CameraManager", "Lỗi khởi chạy takePhoto", t)
+            onError(t)
+        }
     }
 
     private fun processAndSaveToMediaStore(
@@ -209,65 +215,89 @@ class CameraManager(
         displayName: String,
         filter: FilterType
     ): Uri {
-        val exif = ExifInterface(tempFile.absolutePath)
-        val orientation = exif.getAttributeInt(
-            ExifInterface.TAG_ORIENTATION,
-            ExifInterface.ORIENTATION_NORMAL
-        )
-        val rotationDegrees = when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-            else -> 0f
-        }
-
-        var bitmap = BitmapFactory.decodeFile(tempFile.absolutePath)
-
-        if (rotationDegrees != 0f) {
-            val matrix = Matrix().apply { postRotate(rotationDegrees) }
-            val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-            bitmap.recycle()
-            bitmap = rotated
-        }
-
-        if (lensFacing == CameraSelector.LENS_FACING_FRONT) {
-            val mirrorMatrix = Matrix().apply { postScale(-1f, 1f) }
-            val mirrored = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, mirrorMatrix, true)
-            bitmap.recycle()
-            bitmap = mirrored
-        }
-
-        if (filter != FilterType.NONE) {
-            val filtered = ColorMatrixFilter.applyFilterToBitmap(bitmap, filter)
-            bitmap.recycle()
-            bitmap = filtered
-        }
-
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "$displayName.jpg")
-            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/AICamera")
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
+        var bitmap: Bitmap? = null
+        try {
+            val boundsOptions = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
             }
+            BitmapFactory.decodeFile(tempFile.absolutePath, boundsOptions)
+
+            var inSampleSize = 1
+            val maxDimension = maxOf(boundsOptions.outWidth, boundsOptions.outHeight)
+            if (maxDimension > 0) {
+                while (maxDimension.toFloat() / inSampleSize > 2560f) {
+                    inSampleSize *= 2
+                }
+            }
+
+            val decodeOptions = BitmapFactory.Options().apply {
+                this.inSampleSize = inSampleSize
+            }
+            bitmap = BitmapFactory.decodeFile(tempFile.absolutePath, decodeOptions)
+                ?: throw IllegalStateException("Không thể giải mã ảnh từ file tạm")
+
+            val exif = ExifInterface(tempFile.absolutePath)
+            val orientation = exif.getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL
+            )
+            val rotationDegrees = when (orientation) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+
+            if (rotationDegrees != 0f) {
+                val matrix = Matrix().apply { postRotate(rotationDegrees) }
+                val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                bitmap.recycle()
+                bitmap = rotated
+            }
+
+            if (lensFacing == CameraSelector.LENS_FACING_FRONT) {
+                val mirrorMatrix = Matrix().apply { postScale(-1f, 1f) }
+                val mirrored = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, mirrorMatrix, true)
+                bitmap.recycle()
+                bitmap = mirrored
+            }
+
+            if (filter != FilterType.NONE) {
+                val filtered = ColorMatrixFilter.applyFilterToBitmap(bitmap, filter)
+                bitmap.recycle()
+                bitmap = filtered
+            }
+
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, "$displayName.jpg")
+                put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/AICamera")
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+            }
+
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                ?: throw IllegalStateException("Không thể tạo MediaStore URI")
+
+            resolver.openOutputStream(uri)?.use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+            }
+            bitmap.recycle()
+            bitmap = null
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentValues.clear()
+                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                resolver.update(uri, contentValues, null, null)
+            }
+
+            return uri
+        } catch (t: Throwable) {
+            bitmap?.recycle()
+            throw t
         }
-
-        val resolver = context.contentResolver
-        val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            ?: throw IllegalStateException("Không thể tạo MediaStore URI")
-
-        resolver.openOutputStream(uri)?.use { out ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
-        }
-        bitmap.recycle()
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            contentValues.clear()
-            contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
-            resolver.update(uri, contentValues, null, null)
-        }
-
-        return uri
     }
 
     fun shutdown() {

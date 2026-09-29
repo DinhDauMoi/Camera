@@ -389,6 +389,12 @@ class MainActivity : AppCompatActivity() {
 
             chip.setOnClickListener {
                 selectFilter(filter)
+                val filterName = getString(filter.titleRes)
+                Toast.makeText(
+                    this,
+                    "Đã chọn filter: $filterName (áp dụng cho ảnh khi chụp)",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
 
             binding.filterChipContainer.addView(chip)
@@ -464,7 +470,8 @@ class MainActivity : AppCompatActivity() {
             onError = { exc ->
                 isCapturing = false
                 compositionEngine.resetAutoCapture()
-                Toast.makeText(this, "Lỗi chụp: ${exc.localizedMessage}", Toast.LENGTH_SHORT).show()
+                val message = exc.localizedMessage?.takeIf { it.isNotBlank() } ?: "Đã xảy ra lỗi"
+                Toast.makeText(this, "Lỗi chụp: $message", Toast.LENGTH_SHORT).show()
             }
         )
     }
