@@ -42,8 +42,11 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git checkout -b build-error-log
-          tail -n 250 build_output.log > BUILD_ERROR.txt
+          git checkout -B build-error-log
+          grep -C 3 -E "(e: |error:|Compilation error|FAILURE:)" build_output.log > BUILD_ERROR.txt || true
+          echo "" >> BUILD_ERROR.txt
+          echo "=== TAIL LOG ===" >> BUILD_ERROR.txt
+          tail -n 120 build_output.log >> BUILD_ERROR.txt
           git add BUILD_ERROR.txt
           git commit -m "ci: save build error log"
           git push -f origin build-error-log
