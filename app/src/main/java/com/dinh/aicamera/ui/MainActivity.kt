@@ -106,7 +106,7 @@ class MainActivity : AppCompatActivity() {
             isAutoZoomEnabled = preferences.isAutoZoomEnabled
         }
 
-        frameAnalyzer = FrameAnalyzer { subjectBox, isFace, avgLuminance ->
+        frameAnalyzer = FrameAnalyzer(this) { subjectBox, isFace, avgLuminance ->
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
 
@@ -611,6 +611,9 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         if (::cameraManager.isInitialized) {
             cameraManager.shutdown()
+        }
+        if (::frameAnalyzer.isInitialized) {
+            frameAnalyzer.close()
         }
     }
 }

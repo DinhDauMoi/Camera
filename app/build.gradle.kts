@@ -47,6 +47,10 @@ android {
         viewBinding = true
         buildConfig = true
     }
+
+    androidResources {
+        noCompress += "tflite"
+    }
 }
 
 dependencies {
@@ -68,7 +72,11 @@ dependencies {
 
     // Google ML Kit On-Device (Free, runs offline, no server needed)
     implementation("com.google.mlkit:face-detection:16.1.7")
-    implementation("com.google.mlkit:object-detection:17.0.2")
+
+    // TensorFlow Lite
+    implementation("org.tensorflow:tensorflow-lite:2.14.0")
+    implementation("org.tensorflow:tensorflow-lite-gpu:2.14.0")
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
 
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")

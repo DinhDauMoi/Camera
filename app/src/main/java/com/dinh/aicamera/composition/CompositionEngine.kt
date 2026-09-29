@@ -51,6 +51,8 @@ class CompositionEngine {
         // BƯỚC 1: Đang quét khung hình (chưa có chủ thể cố định)
         if (subjectBox == null || subjectBox.isEmpty) {
             resetAutoCapture()
+            lockedTargetPoint = null
+            anchorSubjectCenter = null
             logStageChange(AiStage.SCANNING, "Đang quét tìm chủ thể...")
             return CompositionState(
                 stage = AiStage.SCANNING,
@@ -82,18 +84,31 @@ class CompositionEngine {
             )
         }
 
-        // BƯỚC 2: Chọn 1 điểm đích 1/3 lý tưởng gần chủ thể nhất
-        var targetPoint = intersectionPoints.first()
-        var minDistance = Float.MAX_VALUE
-        for (pt in intersectionPoints) {
-            val dist = hypot(pt.x - subjectCenter.x, pt.y - subjectCenter.y)
-            if (dist < minDistance) {
-                minDistance = dist
-                targetPoint = pt
+        val maxDiag = hypot(screenWidth, screenHeight)
+
+        // Hysteresis cho targetPoint — đã chọn thì GIỮ, chỉ tính lại khi subjectCenter dịch > 8% đường chéo màn hình
+        val targetPoint: PointF
+        val anchor = anchorSubjectCenter
+        val currentLocked = lockedTargetPoint
+
+        if (currentLocked != null && anchor != null && hypot(subjectCenter.x - anchor.x, subjectCenter.y - anchor.y) <= 0.08f * maxDiag) {
+            targetPoint = currentLocked
+        } else {
+            var bestPt = intersectionPoints.first()
+            var minD = Float.MAX_VALUE
+            for (pt in intersectionPoints) {
+                val dist = hypot(pt.x - subjectCenter.x, pt.y - subjectCenter.y)
+                if (dist < minD) {
+                    minD = dist
+                    bestPt = pt
+                }
             }
+            targetPoint = bestPt
+            lockedTargetPoint = bestPt
+            anchorSubjectCenter = PointF(subjectCenter.x, subjectCenter.y)
         }
 
-        val maxDiag = hypot(screenWidth, screenHeight)
+        val minDistance = hypot(targetPoint.x - subjectCenter.x, targetPoint.y - subjectCenter.y)
         val distanceRatio = minDistance / maxDiag
 
         // Ngưỡng xác định chủ thể đã vào vùng đích (<= 14% đường chéo)

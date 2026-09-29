@@ -1,5 +1,6 @@
 package com.dinh.aicamera.camera
 
+import android.content.Context
 import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.RectF
@@ -7,15 +8,16 @@ import androidx.annotation.OptIn
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import com.dinh.aicamera.composition.SubjectTracker
+import com.dinh.aicamera.composition.TrackedSubject
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
-import com.google.mlkit.vision.objects.ObjectDetection
-import com.google.mlkit.vision.objects.defaults.ObjectDetectorOptions
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 
 class FrameAnalyzer(
+    context: Context,
     private val onFrameAnalyzed: (
         subjectBox: RectF?,
         isFace: Boolean,
@@ -32,22 +34,35 @@ class FrameAnalyzer(
             .build()
     )
 
-    // Stream Mode Object Detector (On-device, offline, free)
-    private val objectDetector = ObjectDetection.getClient(
-        ObjectDetectorOptions.Builder()
-            .setDetectorMode(ObjectDetectorOptions.STREAM_MODE)
-            .enableMultipleObjects()
-            .build()
-    )
+    // YOLO11n On-Device Detector (TFLite)
+    private val yoloDetector = YoloDetector(context)
 
     private val isProcessing = AtomicBoolean(false)
 
-    // AI mặc định TẮT: khi tắt thì KHÔNG quét ML Kit để tiết kiệm pin tối đa
+    // AI mặc định TẮT: khi tắt thì KHÔNG quét để tiết kiệm pin tối đa
     var isAiEnabled: Boolean = false
 
     // View dimensions for coordinate scaling
     var previewViewWidth: Int = 1080
+        set(value) {
+            field = value
+            updateSubjectTracker()
+        }
     var previewViewHeight: Int = 1920
+        set(value) {
+            field = value
+            updateSubjectTracker()
+        }
+
+    private var subjectTracker = SubjectTracker(previewViewWidth.toFloat(), previewViewHeight.toFloat())
+
+    // 1 frame chạy AI, 1 frame bỏ qua (chỉ cập nhật box từ frame trước) -> giảm 50% tải CPU/GPU
+    private var frameCount: Long = 0L
+    private var lastTrackedSubject: TrackedSubject? = null
+
+    private fun updateSubjectTracker() {
+        subjectTracker = SubjectTracker(previewViewWidth.toFloat(), previewViewHeight.toFloat())
+    }
 
     @OptIn(ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
@@ -66,9 +81,20 @@ class FrameAnalyzer(
         // Tính độ sáng nhanh từ Y-plane (siêu nhẹ, không tốn tài nguyên)
         val avgLuminance = calculateAverageLuminance(imageProxy.planes[0].buffer)
 
-        // Nếu AI TẮT: Dừng ngay mọi xử lý ML Kit, trả về khung trống, tiết kiệm pin tuyệt đối
+        // Nếu AI TẮT: Dừng ngay mọi xử lý, trả về khung trống, tiết kiệm pin tuyệt đối
         if (!isAiEnabled) {
+            subjectTracker.reset()
+            lastTrackedSubject = null
             onFrameAnalyzed(null, false, avgLuminance)
+            isProcessing.set(false)
+            imageProxy.close()
+            return
+        }
+
+        // Nhịp chạy: 1 frame chạy AI, 1 frame bỏ qua (trả lại kết quả frame trước)
+        val currentFrame = frameCount++
+        if (currentFrame % 2L != 0L) {
+            onFrameAnalyzed(lastTrackedSubject?.box, lastTrackedSubject?.isFace ?: false, avgLuminance)
             isProcessing.set(false)
             imageProxy.close()
             return
@@ -77,55 +103,100 @@ class FrameAnalyzer(
         val rotationDegrees = imageProxy.imageInfo.rotationDegrees
         val inputImage = InputImage.fromMediaImage(mediaImage, rotationDegrees)
 
-        // Bước 1: Ưu tiên tìm mặt người trước
+        // Bước 1: Ưu tiên tìm mặt người trước (nhẹ, nhanh)
         faceDetector.process(inputImage)
             .addOnSuccessListener { faces ->
                 if (faces.isNotEmpty()) {
                     // Chọn mặt lớn nhất làm chủ thể chính
                     val primaryFace = faces.maxByOrNull { it.boundingBox.width() * it.boundingBox.height() }
-                    val transformedBox = primaryFace?.boundingBox?.let { box ->
-                        mapBoxToPreviewCoordinates(box, imageProxy.width, imageProxy.height, rotationDegrees)
+                    val mappedFaceBox = primaryFace?.boundingBox?.let { box ->
+                        mapFaceBoxToPreviewCoordinates(box, imageProxy.width, imageProxy.height, rotationDegrees)
                     }
-                    onFrameAnalyzed(transformedBox, true, avgLuminance)
+
+                    // Chốt và làm mượt qua SubjectTracker
+                    val tracked = subjectTracker.update(mappedFaceBox, isFace = true)
+                    lastTrackedSubject = tracked
+
+                    onFrameAnalyzed(tracked?.box, tracked?.isFace ?: true, avgLuminance)
                     isProcessing.set(false)
                     imageProxy.close()
                 } else {
-                    // Không có mặt người -> tìm vật thể
-                    detectObjects(inputImage, imageProxy, rotationDegrees, avgLuminance)
+                    // Không có mặt người -> chạy YOLO11n tìm vật thể
+                    detectObjectsWithYolo(imageProxy, rotationDegrees, avgLuminance)
                 }
             }
             .addOnFailureListener {
-                detectObjects(inputImage, imageProxy, rotationDegrees, avgLuminance)
+                detectObjectsWithYolo(imageProxy, rotationDegrees, avgLuminance)
             }
     }
 
-    private fun detectObjects(
-        inputImage: InputImage,
+    private fun detectObjectsWithYolo(
         imageProxy: ImageProxy,
         rotationDegrees: Int,
         avgLuminance: Float
     ) {
-        objectDetector.process(inputImage)
-            .addOnSuccessListener { objects ->
-                val primaryObj = objects.maxByOrNull { it.boundingBox.width() * it.boundingBox.height() }
-                val transformedBox = primaryObj?.boundingBox?.let { box ->
-                    mapBoxToPreviewCoordinates(box, imageProxy.width, imageProxy.height, rotationDegrees)
+        try {
+            val detections = yoloDetector.detect(imageProxy)
+            if (detections.isNotEmpty()) {
+                // Chọn box có diện tích lớn nhất (hoặc confidence cao nhất) làm candidate
+                val primaryObj = detections.maxByOrNull { it.box.width() * it.box.height() }
+
+                val isRotated = rotationDegrees == 90 || rotationDegrees == 270
+                val uprightW = if (isRotated) imageProxy.height else imageProxy.width
+                val uprightH = if (isRotated) imageProxy.width else imageProxy.height
+
+                val mappedObjBox = primaryObj?.let {
+                    mapUprightBoxToPreviewCoordinates(it.box, uprightW, uprightH)
                 }
-                onFrameAnalyzed(transformedBox, false, avgLuminance)
+
+                val tracked = subjectTracker.update(mappedObjBox, isFace = false)
+                lastTrackedSubject = tracked
+
+                onFrameAnalyzed(tracked?.box, tracked?.isFace ?: false, avgLuminance)
+            } else {
+                val tracked = subjectTracker.update(null, isFace = false)
+                lastTrackedSubject = tracked
+                onFrameAnalyzed(tracked?.box, tracked?.isFace ?: false, avgLuminance)
             }
-            .addOnFailureListener {
-                onFrameAnalyzed(null, false, avgLuminance)
-            }
-            .addOnCompleteListener {
-                isProcessing.set(false)
-                imageProxy.close()
-            }
+        } catch (e: Throwable) {
+            val tracked = subjectTracker.update(null, isFace = false)
+            lastTrackedSubject = tracked
+            onFrameAnalyzed(tracked?.box, tracked?.isFace ?: false, avgLuminance)
+        } finally {
+            isProcessing.set(false)
+            imageProxy.close()
+        }
     }
 
     /**
-     * Map tọa độ bounding box từ ảnh camera sang PreviewView (FillCenter scale)
+     * Map tọa độ bounding box từ YOLO (đã upright) sang PreviewView (FillCenter scale)
      */
-    private fun mapBoxToPreviewCoordinates(
+    private fun mapUprightBoxToPreviewCoordinates(
+        box: RectF,
+        uprightW: Int,
+        uprightH: Int
+    ): RectF {
+        val viewW = previewViewWidth.toFloat()
+        val viewH = previewViewHeight.toFloat()
+
+        val scale = maxOf(viewW / uprightW.toFloat(), viewH / uprightH.toFloat())
+        val scaledW = uprightW * scale
+        val scaledH = uprightH * scale
+        val dx = (viewW - scaledW) / 2f
+        val dy = (viewH - scaledH) / 2f
+
+        return RectF(
+            box.left * scale + dx,
+            box.top * scale + dy,
+            box.right * scale + dx,
+            box.bottom * scale + dy
+        )
+    }
+
+    /**
+     * Map tọa độ bounding box từ ML Kit Face sang PreviewView (FillCenter scale)
+     */
+    private fun mapFaceBoxToPreviewCoordinates(
         sourceBox: Rect,
         imageWidth: Int,
         imageHeight: Int,
@@ -174,5 +245,14 @@ class FrameAnalyzer(
             i += step
         }
         return if (count > 0) (total.toFloat() / count) else 128f
+    }
+
+    fun close() {
+        try {
+            faceDetector.close()
+            yoloDetector.close()
+        } catch (e: Exception) {
+            // Ignore
+        }
     }
 }
