@@ -44,9 +44,8 @@ jobs:
           name: AI Camera ${{ github.ref_name }}
           files: release-assets/AICamera-${{ github.ref_name }}.apk
           body: |
-            - Nâng cấp AI nhận diện: YOLO11n chạy on-device (nhanh, chuẩn hơn)
-            - Chốt chủ thể + làm mượt: hết nhảy box/vòng tròn khi lia máy
-            - Các fix trước: dialog cập nhật, lỗi chụp, vòng tròn Doka, flash
+            - Đổi tên app thành Lievis Cam, icon mới
+            - Giữ nguyên: AI nhận diện YOLO11n, chốt chủ thể chống nhảy
           generate_release_notes: false
           draft: false
           prerelease: false
