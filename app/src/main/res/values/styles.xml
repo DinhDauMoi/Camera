@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Base Liquid Glass Style -->
-    <style name="Widget.LievisCam.Glass">
+    <style name="Widget.LievisCam.Glass" parent="">
         <item name="android:clipToOutline">true</item>
         <item name="android:elevation">6dp</item>
     </style>
@@ -39,7 +39,7 @@
         <item name="android:windowIsFloating">false</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowDimAmount">0.45</item>
+        <item name="android:backgroundDimAmount">0.45</item>
     </style>
 
     <style name="Widget.LievisCam.BottomSheet" parent="Widget.Design.BottomSheet.Modal">
