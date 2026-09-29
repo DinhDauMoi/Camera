@@ -7,6 +7,9 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build & Assemble Debug APK
@@ -34,13 +37,16 @@ jobs:
           set -o pipefail
           ./gradlew assembleDebug --stacktrace 2>&1 | tee build_output.log
 
-      - name: Report Build Error
+      - name: Push Error Log
         if: failure()
         run: |
-          echo "### Gradle Build Error" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -n 100 build_output.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git checkout -b build-error-log
+          tail -n 250 build_output.log > BUILD_ERROR.txt
+          git add BUILD_ERROR.txt
+          git commit -m "ci: save build error log"
+          git push -f origin build-error-log
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
