@@ -1,21 +1,29 @@
 package com.dinh.aicamera.camera
 
+import android.animation.ValueAnimator
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.hardware.camera2.CaptureRequest
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
+import android.view.animation.DecelerateInterpolator
+import androidx.annotation.OptIn
+import androidx.camera.camera2.interop.Camera2Interop
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
+import androidx.camera.core.ZoomState
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
@@ -35,7 +43,9 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
+@OptIn(ExperimentalCamera2Interop::class)
 class CameraManager(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
@@ -55,6 +65,9 @@ class CameraManager(
 
     // Smooth Zoom state
     private var currentZoomRatio: Float = 1.0f
+    private var zoomAnimator: ValueAnimator? = null
+
+    var onZoomStateChanged: ((ZoomState) -> Unit)? = null
 
     fun startCamera(onReady: () -> Unit = {}) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -72,16 +85,25 @@ class CameraManager(
             .requireLensFacing(lensFacing)
             .build()
 
-        preview = Preview.Builder()
-            .build()
-            .also {
-                it.setSurfaceProvider(previewView.surfaceProvider)
-            }
+        val previewBuilder = Preview.Builder()
+        Camera2Interop.Extender(previewBuilder)
+            .setCaptureRequestOption(
+                CaptureRequest.CONTROL_AF_MODE,
+                CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+            )
+        preview = previewBuilder.build().also {
+            it.setSurfaceProvider(previewView.surfaceProvider)
+        }
 
-        imageCapture = ImageCapture.Builder()
+        val captureBuilder = ImageCapture.Builder()
             .setFlashMode(flashMode)
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-            .build()
+        Camera2Interop.Extender(captureBuilder)
+            .setCaptureRequestOption(
+                CaptureRequest.CONTROL_AF_MODE,
+                CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+            )
+        imageCapture = captureBuilder.build()
 
         imageAnalysis = ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -100,6 +122,13 @@ class CameraManager(
                 imageCapture,
                 imageAnalysis
             )
+            // Lắng nghe zoomState để cập nhật UI & min/max thực tế
+            camera?.cameraInfo?.zoomState?.observe(lifecycleOwner) { state ->
+                if (state != null) {
+                    currentZoomRatio = state.zoomRatio
+                    onZoomStateChanged?.invoke(state)
+                }
+            }
             // Khởi tạo zoom về 1.0x
             currentZoomRatio = 1.0f
             camera?.cameraControl?.setZoomRatio(1.0f)
@@ -131,28 +160,61 @@ class CameraManager(
 
     fun getFlashMode(): Int = flashMode
 
-    // Zoom controls (1.0x - 3.0x lerp mượt mà)
-    fun setZoomRatio(targetRatio: Float) {
-        val clamped = targetRatio.coerceIn(1.0f, 3.0f)
-        // Lerp mượt để chống giật hình
-        currentZoomRatio += 0.15f * (clamped - currentZoomRatio)
-        try {
-            camera?.cameraControl?.setZoomRatio(currentZoomRatio)
-        } catch (e: Exception) {
-            // Thiết bị không hỗ trợ mức zoom này
+    fun getMinZoomRatio(): Float = camera?.cameraInfo?.zoomState?.value?.minZoomRatio ?: 1.0f
+    fun getMaxZoomRatio(): Float = camera?.cameraInfo?.zoomState?.value?.maxZoomRatio ?: 1.0f
+    fun getZoomRatio(): Float = camera?.cameraInfo?.zoomState?.value?.zoomRatio ?: currentZoomRatio
+
+    fun setZoomRatio(ratio: Float, smooth: Boolean = false) {
+        val minRatio = getMinZoomRatio()
+        val maxRatio = getMaxZoomRatio()
+        val targetRatio = ratio.coerceIn(minRatio, maxRatio)
+
+        zoomAnimator?.cancel()
+        zoomAnimator = null
+
+        if (smooth) {
+            val startRatio = getZoomRatio()
+            if (kotlin.math.abs(targetRatio - startRatio) < 0.01f) return
+
+            zoomAnimator = ValueAnimator.ofFloat(startRatio, targetRatio).apply {
+                duration = 200L
+                interpolator = DecelerateInterpolator()
+                addUpdateListener { animator ->
+                    val animatedVal = animator.animatedValue as Float
+                    currentZoomRatio = animatedVal
+                    try {
+                        camera?.cameraControl?.setZoomRatio(animatedVal)
+                    } catch (_: Exception) {}
+                }
+                start()
+            }
+        } else {
+            currentZoomRatio = targetRatio
+            try {
+                camera?.cameraControl?.setZoomRatio(targetRatio)
+            } catch (e: Exception) {
+                Log.e("CameraManager", "setZoomRatio error", e)
+            }
         }
     }
 
     fun resetZoom() {
-        currentZoomRatio = 1.0f
-        try {
-            camera?.cameraControl?.setZoomRatio(1.0f)
-        } catch (e: Exception) {
-            // Ignore
-        }
+        setZoomRatio(1.0f, smooth = false)
     }
 
-    fun getZoomRatio(): Float = currentZoomRatio
+    fun tapToFocus(x: Float, y: Float) {
+        val control = camera?.cameraControl ?: return
+        try {
+            val factory = previewView.meteringPointFactory
+            val point = factory.createPoint(x, y)
+            val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE)
+                .setAutoCancelDuration(3, TimeUnit.SECONDS)
+                .build()
+            control.startFocusAndMetering(action)
+        } catch (e: Exception) {
+            Log.e("CameraManager", "tapToFocus failed", e)
+        }
+    }
 
     /**
      * Chụp ảnh và lưu vào MediaStore (Pictures/AICamera), hỗ trợ nướng filter trực tiếp
@@ -302,6 +364,8 @@ class CameraManager(
     }
 
     fun shutdown() {
+        zoomAnimator?.cancel()
+        zoomAnimator = null
         cameraExecutor.shutdown()
     }
 }

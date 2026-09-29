@@ -3,6 +3,7 @@ package com.dinh.aicamera.ui
 import android.Manifest
 import android.content.ContentUris
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -11,16 +12,18 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.MediaStore
+import android.view.GestureDetector
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
-import android.view.animation.ScaleAnimation
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.ImageCapture
+import androidx.camera.core.ZoomState
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.GridLayoutManager
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.dinh.aicamera.R
@@ -34,13 +37,14 @@ import com.dinh.aicamera.databinding.ActivityMainBinding
 import com.dinh.aicamera.filter.AIFilterRecommender
 import com.dinh.aicamera.filter.FilterType
 import com.dinh.aicamera.ui.gallery.FullscreenPhotoDialog
-import com.dinh.aicamera.ui.gallery.GalleryGridAdapter
 import com.dinh.aicamera.ui.update.AppUpdateManager
 import com.dinh.aicamera.ui.update.UpdateDialogFragment
 import com.dinh.aicamera.ui.update.UpdateResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
+import kotlin.math.abs
 
 class MainActivity : AppCompatActivity() {
 
@@ -62,9 +66,12 @@ class MainActivity : AppCompatActivity() {
     private var isCapturing: Boolean = false
     private var lastAiStage: AiStage = AiStage.SCANNING
 
-    // Gallery Tab State
-    private val galleryUris = mutableListOf<Uri>()
-    private lateinit var galleryAdapter: GalleryGridAdapter
+    // Zoom & Gestures State
+    private var manualZoomOverride: Boolean = false
+    private var lastVibrateTime: Long = 0L
+    private var lastCapturedUri: Uri? = null
+    private lateinit var scaleGestureDetector: ScaleGestureDetector
+    private lateinit var gestureDetector: GestureDetector
 
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -74,14 +81,6 @@ class MainActivity : AppCompatActivity() {
             setupCamera()
         } else {
             binding.permissionCard.visibility = View.VISIBLE
-        }
-    }
-
-    private val storagePermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            loadGalleryPhotos()
         }
     }
 
@@ -96,7 +95,6 @@ class MainActivity : AppCompatActivity() {
         initAIEngines()
         setupUI()
         setupSensors()
-        setupGalleryTab()
         checkCameraPermission()
 
         autoCheckAppUpdate()
@@ -141,18 +139,23 @@ class MainActivity : AppCompatActivity() {
                     }
                 )
 
-                // Rung phản hồi nhẹ khi vừa căn chuẩn vào vùng đích (ALIGNED) chuẩn Doka
-                if (state.stage == AiStage.ALIGNED && lastAiStage != AiStage.ALIGNED) {
+                // Rung phản hồi nhẹ khi vừa căn chuẩn vào vùng đích (ALIGNED) - debounce 1.5s
+                val now = System.currentTimeMillis()
+                if (state.stage == AiStage.ALIGNED && lastAiStage != AiStage.ALIGNED && (now - lastVibrateTime >= 1500L)) {
                     vibrateLight()
+                    lastVibrateTime = now
                 }
                 lastAiStage = state.stage
 
                 // Cập nhật AR overlay (3 Bước: SCANNING -> GUIDING -> ALIGNED)
                 binding.compositionOverlay.updateState(state)
 
-                // BƯỚC 3: TỰ ĐỘNG ZOOM khi đã vào vùng đích (1.0x - 3.0x lerp mượt mà)
-                if (state.stage == AiStage.ALIGNED && state.shouldZoom) {
-                    cameraManager.setZoomRatio(state.targetZoomRatio)
+                // BƯỚC 3: TỰ ĐỘNG ZOOM khi đã vào vùng đích (deadband > 0.02, không gọi khi AI tắt, stage SCANNING hoặc manual zoom override)
+                if (preferences.isAiEnabled && state.stage != AiStage.SCANNING && state.stage == AiStage.ALIGNED && state.shouldZoom && !manualZoomOverride) {
+                    val currentRatio = cameraManager.getZoomRatio()
+                    if (abs(state.targetZoomRatio - currentRatio) > 0.02f) {
+                        cameraManager.setZoomRatio(state.targetZoomRatio, smooth = true)
+                    }
                 }
 
                 // AI Gợi ý Filter (hiện dưới khung hình, không đè lên AR overlay)
@@ -177,7 +180,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupUI() {
         // Thiết lập Liquid Glass đúng chuẩn: clipToOutline = true, không làm mờ nút bấm
         LiquidGlassHelper.setupGlassPill(binding.topToolbar)
-        LiquidGlassHelper.setupGlassPill(binding.bottomNavigationPill)
+        LiquidGlassHelper.setupGlassPill(binding.zoomPresetContainer)
 
         // 1. Nút Bật/Tắt AI (Mặc định TẮT)
         updateAiToggleUI()
@@ -186,6 +189,7 @@ class MainActivity : AppCompatActivity() {
             frameAnalyzer.isAiEnabled = preferences.isAiEnabled
             binding.compositionOverlay.isAiEnabled = preferences.isAiEnabled
             subjectTracker?.reset()
+            manualZoomOverride = false
 
             if (!preferences.isAiEnabled) {
                 // Tắt AI -> reset zoom về 1.0x ngay
@@ -215,6 +219,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnSwitchCamera.setOnClickListener {
             animateButtonClick(it)
             cameraManager.switchCamera()
+            manualZoomOverride = false
         }
 
         // 5. Chuyển đổi Flash (OFF -> ON -> AUTO)
@@ -247,17 +252,32 @@ class MainActivity : AppCompatActivity() {
             binding.filterCarouselScroll.visibility = if (isVisible) View.GONE else View.VISIBLE
         }
 
-        // Xem nhanh ảnh vừa chụp
+        // 8. Xem nhanh ảnh vừa chụp
         binding.btnQuickPreview.setOnClickListener {
-            switchTab(isCamera = false)
-        }
-
-        // Chuyển tab Máy ảnh & Thư viện
-        binding.tabBtnCamera.setOnClickListener {
-            switchTab(isCamera = true)
-        }
-        binding.tabBtnGallery.setOnClickListener {
-            switchTab(isCamera = false)
+            val uri = lastCapturedUri
+            if (uri != null) {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, "image/*")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    try {
+                        FullscreenPhotoDialog.newInstance(
+                            uris = listOf(uri),
+                            startPosition = 0
+                        ).show(supportFragmentManager, FullscreenPhotoDialog.TAG)
+                    } catch (_: Exception) {}
+                }
+            } else {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+                    startActivity(intent)
+                } catch (_: Exception) {
+                    Toast.makeText(this, "Chưa có ảnh nào vừa chụp", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         // Cấp quyền camera
@@ -265,6 +285,8 @@ class MainActivity : AppCompatActivity() {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
 
+        setupZoomControls()
+        setupGestureDetectors()
         populateFilterCarousel()
     }
 
@@ -291,63 +313,101 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun switchTab(isCamera: Boolean) {
-        if (isCamera) {
-            binding.cameraTabContainer.visibility = View.VISIBLE
-            binding.galleryTabContainer.visibility = View.GONE
-            binding.tabBtnCamera.setBackgroundResource(R.drawable.bg_glass_pill_active)
-            binding.tabBtnCamera.setTextColor(ContextCompat.getColor(this, R.color.accent_gold))
-            binding.tabBtnGallery.background = null
-            binding.tabBtnGallery.setTextColor(ContextCompat.getColor(this, R.color.white_70))
-        } else {
-            binding.cameraTabContainer.visibility = View.GONE
-            binding.galleryTabContainer.visibility = View.VISIBLE
-            binding.tabBtnGallery.setBackgroundResource(R.drawable.bg_glass_pill_active)
-            binding.tabBtnGallery.setTextColor(ContextCompat.getColor(this, R.color.accent_gold))
-            binding.tabBtnCamera.background = null
-            binding.tabBtnCamera.setTextColor(ContextCompat.getColor(this, R.color.white_70))
+    private fun setupZoomControls() {
+        binding.btnZoom05.setOnClickListener {
+            manualZoomOverride = true
+            cameraManager.setZoomRatio(0.5f, smooth = true)
+        }
 
-            checkStoragePermissionAndLoadGallery()
+        binding.btnZoom1.setOnClickListener {
+            manualZoomOverride = true
+            cameraManager.setZoomRatio(1.0f, smooth = true)
+        }
+
+        binding.btnZoom3.setOnClickListener {
+            manualZoomOverride = true
+            cameraManager.setZoomRatio(3.0f, smooth = true)
+        }
+
+        binding.btnZoom6.setOnClickListener {
+            manualZoomOverride = true
+            cameraManager.setZoomRatio(6.0f, smooth = true)
         }
     }
 
-    private fun setupGalleryTab() {
-        binding.rvGalleryGrid.layoutManager = GridLayoutManager(this, 3)
-        galleryAdapter = GalleryGridAdapter(galleryUris) { position ->
-            FullscreenPhotoDialog.newInstance(
-                uris = galleryUris,
-                startPosition = position,
-                onDeleted = { deletedPos ->
-                    galleryAdapter.removeAt(deletedPos)
-                    updateGalleryCount()
+    private fun updateZoomUI(zoomState: ZoomState) {
+        val current = zoomState.zoomRatio
+        val min = zoomState.minZoomRatio
+        val max = zoomState.maxZoomRatio
+
+        binding.tvCurrentZoom.text = String.format(Locale.US, "%.1fx", current)
+
+        // Giới hạn theo khả năng thật của camera: nút preset ngoài khoảng thì ẩn đi
+        binding.btnZoom05.visibility = if (min <= 0.5f) View.VISIBLE else View.GONE
+        binding.btnZoom1.visibility = if (min <= 1.0f && max >= 1.0f) View.VISIBLE else View.GONE
+        binding.btnZoom3.visibility = if (max >= 3.0f) View.VISIBLE else View.GONE
+        binding.btnZoom6.visibility = if (max >= 6.0f) View.VISIBLE else View.GONE
+
+        val activeBg = R.drawable.bg_glass_pill_active
+        val activeColor = ContextCompat.getColor(this, R.color.accent_gold)
+        val inactiveColor = ContextCompat.getColor(this, R.color.white_70)
+
+        val is05 = abs(current - 0.5f) < 0.08f
+        val is1 = abs(current - 1.0f) < 0.12f
+        val is3 = abs(current - 3.0f) < 0.2f
+        val is6 = abs(current - 6.0f) < 0.3f
+
+        binding.btnZoom05.background = if (is05) ContextCompat.getDrawable(this, activeBg) else null
+        binding.btnZoom05.setTextColor(if (is05) activeColor else inactiveColor)
+
+        binding.btnZoom1.background = if (is1) ContextCompat.getDrawable(this, activeBg) else null
+        binding.btnZoom1.setTextColor(if (is1) activeColor else inactiveColor)
+
+        binding.btnZoom3.background = if (is3) ContextCompat.getDrawable(this, activeBg) else null
+        binding.btnZoom3.setTextColor(if (is3) activeColor else inactiveColor)
+
+        binding.btnZoom6.background = if (is6) ContextCompat.getDrawable(this, activeBg) else null
+        binding.btnZoom6.setTextColor(if (is6) activeColor else inactiveColor)
+    }
+
+    private fun setupGestureDetectors() {
+        scaleGestureDetector = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                manualZoomOverride = true
+                val currentRatio = cameraManager.getZoomRatio()
+                val minRatio = cameraManager.getMinZoomRatio()
+                val maxRatio = cameraManager.getMaxZoomRatio()
+                val newRatio = (currentRatio * detector.scaleFactor).coerceIn(minRatio, maxRatio)
+                cameraManager.setZoomRatio(newRatio, smooth = false)
+                return true
+            }
+        })
+
+        gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                if (!scaleGestureDetector.isInProgress) {
+                    cameraManager.tapToFocus(e.x, e.y)
                 }
-            ).show(supportFragmentManager, FullscreenPhotoDialog.TAG)
-        }
-        binding.rvGalleryGrid.adapter = galleryAdapter
-    }
+                return true
+            }
+        })
 
-    private fun checkStoragePermissionAndLoadGallery() {
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_IMAGES
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
-
-        if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
-            loadGalleryPhotos()
-        } else {
-            storagePermissionLauncher.launch(permission)
+        binding.previewView.setOnTouchListener { v, event ->
+            scaleGestureDetector.onTouchEvent(event)
+            gestureDetector.onTouchEvent(event)
+            if (event.action == MotionEvent.ACTION_UP) {
+                v.performClick()
+            }
+            true
         }
     }
 
-    private fun loadGalleryPhotos() {
+    private fun loadLatestThumbnail() {
         lifecycleScope.launch {
-            val list = queryMediaStorePhotos()
-            galleryAdapter.updateList(list)
-            updateGalleryCount()
-
-            if (list.isNotEmpty()) {
-                binding.ivQuickThumbnail.load(list.first()) {
+            val uri = queryLatestMediaStorePhoto()
+            if (uri != null) {
+                lastCapturedUri = uri
+                binding.ivQuickThumbnail.load(uri) {
                     transformations(CircleCropTransformation())
                     crossfade(true)
                 }
@@ -355,46 +415,27 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun queryMediaStorePhotos(): List<Uri> = withContext(Dispatchers.IO) {
-        val photoList = mutableListOf<Uri>()
-        val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DATE_ADDED)
+    private suspend fun queryLatestMediaStorePhoto(): Uri? = withContext(Dispatchers.IO) {
+        val projection = arrayOf(MediaStore.Images.Media._ID)
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
-
         try {
-            val cursor = contentResolver.query(
+            contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 projection,
                 null,
                 null,
                 sortOrder
-            )
-            cursor?.use {
-                val idColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-                var count = 0
-                while (it.moveToNext() && count < 60) {
-                    val id = it.getLong(idColumn)
-                    val contentUri = ContentUris.withAppendedId(
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
+                    return@withContext ContentUris.withAppendedId(
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                         id
                     )
-                    photoList.add(contentUri)
-                    count++
                 }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return@withContext photoList
-    }
-
-    private fun updateGalleryCount() {
-        if (galleryUris.isEmpty()) {
-            binding.tvEmptyGallery.visibility = View.VISIBLE
-            binding.tvGalleryCount.text = "0 ảnh"
-        } else {
-            binding.tvEmptyGallery.visibility = View.GONE
-            binding.tvGalleryCount.text = "${galleryUris.size} ảnh"
-        }
+        } catch (_: Exception) {}
+        null
     }
 
     private fun populateFilterCarousel() {
@@ -523,9 +564,7 @@ class MainActivity : AppCompatActivity() {
             crossfade(true)
         }
 
-        galleryUris.add(0, uri)
-        galleryAdapter.notifyItemInserted(0)
-        updateGalleryCount()
+        lastCapturedUri = uri
     }
 
     private fun updateFlashIcon(mode: Int) {
@@ -587,8 +626,14 @@ class MainActivity : AppCompatActivity() {
                 lifecycleOwner = this,
                 previewView = binding.previewView,
                 frameAnalyzer = frameAnalyzer
-            )
-            cameraManager.startCamera()
+            ).apply {
+                onZoomStateChanged = { state ->
+                    updateZoomUI(state)
+                }
+            }
+            cameraManager.startCamera {
+                loadLatestThumbnail()
+            }
             updateFlashIcon(cameraManager.getFlashMode())
         }
     }
