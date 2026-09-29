@@ -44,9 +44,9 @@ jobs:
           name: AI Camera ${{ github.ref_name }}
           files: release-assets/AICamera-${{ github.ref_name }}.apk
           body: |
-            - Sửa dialog cập nhật hiển thị đúng kích thước
-            - Changelog hiện chữ sạch, dễ đọc
-            - Các fix trước: lỗi chụp, vòng tròn AI kiểu Doka, flash
+            - Nâng cấp AI nhận diện: YOLO11n chạy on-device (nhanh, chuẩn hơn)
+            - Chốt chủ thể + làm mượt: hết nhảy box/vòng tròn khi lia máy
+            - Các fix trước: dialog cập nhật, lỗi chụp, vòng tròn Doka, flash
           generate_release_notes: false
           draft: false
           prerelease: false
