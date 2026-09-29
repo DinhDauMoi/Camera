@@ -49,7 +49,7 @@ class CameraManager(
     private var preview: Preview? = null
 
     private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
-    private var flashMode: Int = ImageCapture.FLASH_MODE_AUTO
+    private var flashMode: Int = ImageCapture.FLASH_MODE_OFF
 
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
@@ -121,9 +121,9 @@ class CameraManager(
 
     fun cycleFlashMode(): Int {
         flashMode = when (flashMode) {
-            ImageCapture.FLASH_MODE_AUTO -> ImageCapture.FLASH_MODE_ON
-            ImageCapture.FLASH_MODE_ON -> ImageCapture.FLASH_MODE_OFF
-            else -> ImageCapture.FLASH_MODE_AUTO
+            ImageCapture.FLASH_MODE_OFF -> ImageCapture.FLASH_MODE_ON
+            ImageCapture.FLASH_MODE_ON -> ImageCapture.FLASH_MODE_AUTO
+            else -> ImageCapture.FLASH_MODE_OFF
         }
         imageCapture?.flashMode = flashMode
         return flashMode
@@ -167,8 +167,9 @@ class CameraManager(
                 onError(IllegalStateException("Camera chưa sẵn sàng"))
                 return
             }
+            capture.flashMode = flashMode
 
-            val name = SimpleDateFormat("AICAM_yyyyMMdd_HHmmss", Locale.US)
+            val name = SimpleDateFormat("'AICAM'_yyyyMMdd_HHmmss", Locale.US)
                 .format(System.currentTimeMillis())
 
             val tempFile = File.createTempFile("temp_cam_", ".jpg", context.cacheDir)

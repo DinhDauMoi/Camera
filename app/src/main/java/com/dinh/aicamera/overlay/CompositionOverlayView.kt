@@ -48,6 +48,11 @@ class CompositionOverlayView @JvmOverloads constructor(
     private var targetX: Float = 0f
     private var targetY: Float = 0f
 
+    // Morphing Doka-style Ring -> Frame variables
+    private val morphRect = RectF()
+    private var morphCornerRadius: Float = 0f
+    private var animatedRingRadius: Float = 12f
+
     // Scanning radar pulse animation
     private var scanAngle: Float = 0f
 
@@ -195,22 +200,22 @@ class CompositionOverlayView @JvmOverloads constructor(
         when (currentState.stage) {
             AiStage.SCANNING -> {
                 // Bước 1: Quét khung hình nhẹ nhàng (radar pulse), chưa hiện gợi ý dồn dập
+                morphRect.setEmpty()
                 drawScanningEffect(canvas, w, h)
                 drawGuidancePill(canvas, w, "Đang quét khung hình...")
             }
 
             AiStage.GUIDING -> {
-                // Bước 2: Hiện vòng tròn đích vàng + mũi tên chỉ hướng lia máy
-                drawTargetGoldenRing(canvas)
+                // Bước 2: Vòng tròn đích vàng xuất hiện nhỏ, nở to dần theo khoảng cách khi lia máy về phía vòng
+                drawTargetGoldenRingOrMorph(canvas, w, h)
                 drawSubjectReticle(canvas, isLocked = false)
                 drawDirectionalArrow(canvas)
                 drawGuidancePill(canvas, w, currentState.guidanceText)
             }
 
             AiStage.ALIGNED -> {
-                // Bước 3: Đã vào vùng đích -> hiện vòng đích khóa vàng, vòng điểm số cố định góc phải
-                drawTargetGoldenRing(canvas)
-                drawSubjectReticle(canvas, isLocked = true)
+                // Bước 3: Đã vào vùng đích -> vòng morph thành khung chữ nhật bo tròn ôm quanh subjectBounds
+                drawTargetGoldenRingOrMorph(canvas, w, h)
                 drawScoreRing(canvas, w)
                 drawGuidancePill(canvas, w, currentState.guidanceText)
             }
@@ -271,17 +276,109 @@ class CompositionOverlayView @JvmOverloads constructor(
         postInvalidateOnAnimation()
     }
 
-    private fun drawTargetGoldenRing(canvas: Canvas) {
+    private fun drawTargetGoldenRingOrMorph(canvas: Canvas, w: Float, h: Float) {
+        val dp = resources.displayMetrics.density
         val pt = currentState.targetPoint
         if (pt.x <= 0f && pt.y <= 0f) return
 
         targetX += 0.25f * (pt.x - targetX)
         targetY += 0.25f * (pt.y - targetY)
 
-        val radius = 18f * resources.displayMetrics.density
-        canvas.drawCircle(targetX, targetY, radius + 4f, targetGlowPaint)
-        canvas.drawCircle(targetX, targetY, radius, targetRingPaint)
-        canvas.drawCircle(targetX, targetY, 2f * resources.displayMetrics.density, targetRingPaint)
+        val isAligned = currentState.stage == AiStage.ALIGNED
+
+        if (!isAligned) {
+            // GUIDING: Vòng tròn vàng xuất hiện nhỏ (12dp), nở to dần (tới 30dp) khi lia máy lại gần đích
+            val maxDist = maxOf(w, h) * 0.45f
+            val proximity = (1f - (currentState.distanceToTarget / maxDist)).coerceIn(0f, 1f)
+            val minRadius = 12f * dp
+            val maxRadius = 30f * dp
+            val targetRadius = minRadius + (maxRadius - minRadius) * proximity
+
+            animatedRingRadius += 0.25f * (targetRadius - animatedRingRadius)
+
+            val destRect = RectF(
+                targetX - animatedRingRadius,
+                targetY - animatedRingRadius,
+                targetX + animatedRingRadius,
+                targetY + animatedRingRadius
+            )
+            val destCorner = animatedRingRadius
+
+            lerpMorph(destRect, destCorner)
+
+            // Vẽ vòng tròn vàng + viền glow ngoài + tâm điểm
+            canvas.drawRoundRect(morphRect, morphCornerRadius, morphCornerRadius, targetGlowPaint)
+            canvas.drawRoundRect(morphRect, morphCornerRadius, morphCornerRadius, targetRingPaint)
+            canvas.drawCircle(targetX, targetY, 2.5f * dp, targetRingPaint)
+        } else {
+            // ALIGNED: Vòng tròn nở & morph thành KHUNG chữ nhật bo tròn ôm quanh subjectBounds (chuẩn Doka)
+            val box = currentState.subjectBounds
+            val padding = 6f * dp
+            val destRect = if (!box.isEmpty) {
+                RectF(box.left - padding, box.top - padding, box.right + padding, box.bottom + padding)
+            } else {
+                RectF(targetX - 45f * dp, targetY - 45f * dp, targetX + 45f * dp, targetY + 45f * dp)
+            }
+            val destCorner = 14f * dp
+
+            lerpMorph(destRect, destCorner)
+
+            // Vẽ khung chữ nhật bo tròn vàng óng bao quanh chủ thể
+            canvas.drawRoundRect(morphRect, morphCornerRadius, morphCornerRadius, targetGlowPaint)
+            canvas.drawRoundRect(morphRect, morphCornerRadius, morphCornerRadius, targetRingPaint)
+
+            // Vẽ các góc bo nhấn (corner accents) cho khung thêm tinh tế
+            drawFrameCorners(canvas, morphRect, destCorner)
+        }
+
+        // Kích hoạt redraw mượt mà cho hiệu ứng morphing
+        postInvalidateOnAnimation()
+    }
+
+    private fun lerpMorph(destRect: RectF, destCorner: Float) {
+        if (morphRect.isEmpty) {
+            morphRect.set(destRect)
+            morphCornerRadius = destCorner
+        } else {
+            val f = 0.25f
+            morphRect.left += f * (destRect.left - morphRect.left)
+            morphRect.top += f * (destRect.top - morphRect.top)
+            morphRect.right += f * (destRect.right - morphRect.right)
+            morphRect.bottom += f * (destRect.bottom - morphRect.bottom)
+            morphCornerRadius += f * (destCorner - morphCornerRadius)
+        }
+    }
+
+    private fun drawFrameCorners(canvas: Canvas, rect: RectF, radius: Float) {
+        val dp = resources.displayMetrics.density
+        val len = 14f * dp
+        val p = Path()
+
+        // Top-Left
+        p.moveTo(rect.left, rect.top + len)
+        p.lineTo(rect.left, rect.top + radius)
+        p.quadTo(rect.left, rect.top, rect.left + radius, rect.top)
+        p.lineTo(rect.left + len, rect.top)
+
+        // Top-Right
+        p.moveTo(rect.right - len, rect.top)
+        p.lineTo(rect.right - radius, rect.top)
+        p.quadTo(rect.right, rect.top, rect.right - radius, rect.top)
+        p.lineTo(rect.right, rect.top + len)
+
+        // Bottom-Right
+        p.moveTo(rect.right, rect.bottom - len)
+        p.lineTo(rect.right, rect.bottom - radius)
+        p.quadTo(rect.right, rect.bottom, rect.right - radius, rect.bottom)
+        p.lineTo(rect.right - len, rect.bottom)
+
+        // Bottom-Left
+        p.moveTo(rect.left + len, rect.bottom)
+        p.lineTo(rect.left + radius, rect.bottom)
+        p.quadTo(rect.left, rect.bottom, rect.left, rect.bottom - radius)
+        p.lineTo(rect.left, rect.bottom - len)
+
+        canvas.drawPath(p, targetRingPaint)
     }
 
     private fun drawSubjectReticle(canvas: Canvas, isLocked: Boolean) {

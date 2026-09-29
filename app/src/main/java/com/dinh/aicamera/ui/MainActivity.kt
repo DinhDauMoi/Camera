@@ -36,6 +36,7 @@ import com.dinh.aicamera.ui.gallery.FullscreenPhotoDialog
 import com.dinh.aicamera.ui.gallery.GalleryGridAdapter
 import com.dinh.aicamera.ui.update.AppUpdateManager
 import com.dinh.aicamera.ui.update.UpdateDialogFragment
+import com.dinh.aicamera.ui.update.UpdateResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -57,6 +58,7 @@ class MainActivity : AppCompatActivity() {
 
     private var activeFilter: FilterType = FilterType.NONE
     private var isCapturing: Boolean = false
+    private var lastAiStage: AiStage = AiStage.SCANNING
 
     // Gallery Tab State
     private val galleryUris = mutableListOf<Uri>()
@@ -131,6 +133,12 @@ class MainActivity : AppCompatActivity() {
                     }
                 )
 
+                // Rung phản hồi nhẹ khi vừa căn chuẩn vào vùng đích (ALIGNED) chuẩn Doka
+                if (state.stage == AiStage.ALIGNED && lastAiStage != AiStage.ALIGNED) {
+                    vibrateLight()
+                }
+                lastAiStage = state.stage
+
                 // Cập nhật AR overlay (3 Bước: SCANNING -> GUIDING -> ALIGNED)
                 binding.compositionOverlay.updateState(state)
 
@@ -200,10 +208,16 @@ class MainActivity : AppCompatActivity() {
             cameraManager.switchCamera()
         }
 
-        // 5. Chuyển đổi Flash
+        // 5. Chuyển đổi Flash (OFF -> ON -> AUTO)
         binding.btnFlash.setOnClickListener {
             val mode = cameraManager.cycleFlashMode()
             updateFlashIcon(mode)
+            val text = when (mode) {
+                ImageCapture.FLASH_MODE_ON -> getString(R.string.flash_on)
+                ImageCapture.FLASH_MODE_AUTO -> getString(R.string.flash_auto)
+                else -> getString(R.string.flash_off)
+            }
+            Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
         }
 
         // 6. Cài đặt (Bật/tắt tự động zoom, tự cập nhật)
@@ -508,8 +522,8 @@ class MainActivity : AppCompatActivity() {
     private fun updateFlashIcon(mode: Int) {
         val iconRes = when (mode) {
             ImageCapture.FLASH_MODE_ON -> R.drawable.ic_flash_on
-            ImageCapture.FLASH_MODE_OFF -> R.drawable.ic_flash_off
-            else -> R.drawable.ic_flash_auto
+            ImageCapture.FLASH_MODE_AUTO -> R.drawable.ic_flash_auto
+            else -> R.drawable.ic_flash_off
         }
         binding.btnFlash.setImageResource(iconRes)
     }
@@ -566,17 +580,18 @@ class MainActivity : AppCompatActivity() {
                 frameAnalyzer = frameAnalyzer
             )
             cameraManager.startCamera()
+            updateFlashIcon(cameraManager.getFlashMode())
         }
     }
 
     private fun autoCheckAppUpdate() {
         lifecycleScope.launch {
-            val updateInfo = updateManager.checkUpdate(isManual = false)
-            if (updateInfo != null && updateInfo.isNewer) {
+            val result = updateManager.checkUpdate(isManual = false)
+            if (result is UpdateResult.UpdateAvailable) {
                 UpdateDialogFragment.newInstance(
-                    version = updateInfo.latestVersion,
-                    changelog = updateInfo.changelog,
-                    url = updateInfo.downloadUrl
+                    version = result.info.latestVersion,
+                    changelog = result.info.changelog,
+                    url = result.info.downloadUrl
                 ).show(supportFragmentManager, UpdateDialogFragment.TAG)
             }
         }

@@ -17,6 +17,14 @@ class CompositionEngine {
     private var highQualityStartTime: Long = 0L
     private var isTriggeredForCurrentLock: Boolean = false
     private val requiredHoldTimeMs = 1000L // Duy trì 1 giây điểm > 85
+    private var lastLoggedStage: AiStage? = null
+
+    private fun logStageChange(newStage: AiStage, details: String) {
+        if (newStage != lastLoggedStage) {
+            android.util.Log.d("CompositionEngine", "AI Stage: $lastLoggedStage -> $newStage | $details")
+            lastLoggedStage = newStage
+        }
+    }
 
     fun evaluate(
         subjectBox: RectF?,
@@ -43,6 +51,7 @@ class CompositionEngine {
         // BƯỚC 1: Đang quét khung hình (chưa có chủ thể cố định)
         if (subjectBox == null || subjectBox.isEmpty) {
             resetAutoCapture()
+            logStageChange(AiStage.SCANNING, "Đang quét tìm chủ thể...")
             return CompositionState(
                 stage = AiStage.SCANNING,
                 hasSubject = false,
@@ -105,6 +114,7 @@ class CompositionEngine {
                 screenHeight = screenHeight
             )
 
+            logStageChange(AiStage.GUIDING, "Đang dẫn hướng, khoảng cách tới đích: ${minDistance.toInt()}px")
             return CompositionState(
                 stage = AiStage.GUIDING,
                 hasSubject = true,
@@ -189,6 +199,7 @@ class CompositionEngine {
             resetAutoCapture()
         }
 
+        logStageChange(AiStage.ALIGNED, "Đã vào vùng đích! Điểm: $totalScore, zoom: $targetZoom")
         return CompositionState(
             stage = AiStage.ALIGNED,
             hasSubject = true,

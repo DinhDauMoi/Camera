@@ -5,6 +5,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
+import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.dinh.aicamera.BuildConfig
 import com.dinh.aicamera.ui.AppPreferences
@@ -25,6 +27,16 @@ data class UpdateInfo(
     val isNewer: Boolean
 )
 
+sealed class UpdateResult {
+    data class UpdateAvailable(val info: UpdateInfo) : UpdateResult()
+    object AlreadyLatest : UpdateResult()
+    object NoReleasesFound : UpdateResult() // 404
+    object RateLimited : UpdateResult() // 403
+    object NoApkAttached : UpdateResult() // Không có file .apk trong assets
+    data class NetworkError(val message: String) : UpdateResult()
+    data class UnknownError(val message: String) : UpdateResult()
+}
+
 class AppUpdateManager(private val context: Context) {
 
     private val preferences = AppPreferences(context)
@@ -33,9 +45,9 @@ class AppUpdateManager(private val context: Context) {
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    suspend fun checkUpdate(isManual: Boolean = false): UpdateInfo? = withContext(Dispatchers.IO) {
+    suspend fun checkUpdate(isManual: Boolean = false): UpdateResult = withContext(Dispatchers.IO) {
         if (!isManual && !preferences.isAutoCheckUpdate) {
-            return@withContext null
+            return@withContext UpdateResult.AlreadyLatest
         }
 
         val url = "https://api.github.com/repos/${BuildConfig.GITHUB_REPO_OWNER}/${BuildConfig.GITHUB_REPO_NAME}/releases/latest"
@@ -46,14 +58,34 @@ class AppUpdateManager(private val context: Context) {
 
         try {
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext null
-                val body = response.body?.string() ?: return@withContext null
-                val json = JSONObject(body)
+                when (response.code) {
+                    404 -> {
+                        Log.e("AppUpdateManager", "GitHub 404: Chưa có bản phát hành nào trong repo ${BuildConfig.GITHUB_REPO_OWNER}/${BuildConfig.GITHUB_REPO_NAME}")
+                        return@withContext UpdateResult.NoReleasesFound
+                    }
+                    403 -> {
+                        Log.e("AppUpdateManager", "GitHub 403: Rate limit exceeded (vượt giới hạn request không xác thực)")
+                        return@withContext UpdateResult.RateLimited
+                    }
+                    in 200..299 -> {
+                        // Tiếp tục xử lý
+                    }
+                    else -> {
+                        Log.e("AppUpdateManager", "GitHub API phản hồi HTTP ${response.code}: ${response.message}")
+                        return@withContext UpdateResult.UnknownError("HTTP ${response.code}: ${response.message}")
+                    }
+                }
 
+                val body = response.body?.string()
+                if (body.isNullOrEmpty()) {
+                    Log.e("AppUpdateManager", "Nội dung phản hồi từ GitHub rỗng")
+                    return@withContext UpdateResult.UnknownError("Phản hồi rỗng")
+                }
+
+                val json = JSONObject(body)
                 val tagName = json.optString("tag_name", "").trim()
                 val cleanLatest = tagName.removePrefix("v").removePrefix("V")
                 val cleanCurrent = BuildConfig.VERSION_NAME.removePrefix("v").removePrefix("V")
-
                 val changelog = json.optString("body", "Cập nhật tính năng mới và sửa lỗi")
 
                 // Tìm file APK trong assets
@@ -71,26 +103,33 @@ class AppUpdateManager(private val context: Context) {
                 }
 
                 if (apkUrl.isEmpty()) {
-                    return@withContext null
+                    Log.e("AppUpdateManager", "Release $tagName không có tệp .apk đính kèm trong assets")
+                    return@withContext UpdateResult.NoApkAttached
                 }
 
                 val isNewer = isVersionNewer(cleanLatest, cleanCurrent)
-
-                // Nếu tự động kiểm tra mà phiên bản này user đã chọn "Để sau" trước đó -> bỏ qua
-                if (!isManual && isNewer && cleanLatest == preferences.ignoredUpdateVersion) {
-                    return@withContext null
+                if (!isNewer) {
+                    Log.d("AppUpdateManager", "Phiên bản hiện tại $cleanCurrent đã là mới nhất so với $cleanLatest")
+                    return@withContext UpdateResult.AlreadyLatest
                 }
 
-                return@withContext UpdateInfo(
-                    latestVersion = tagName,
-                    changelog = changelog,
-                    downloadUrl = apkUrl,
-                    isNewer = isNewer
+                // Nếu tự động kiểm tra mà phiên bản này user đã chọn "Để sau" trước đó -> bỏ qua
+                if (!isManual && cleanLatest == preferences.ignoredUpdateVersion) {
+                    return@withContext UpdateResult.AlreadyLatest
+                }
+
+                return@withContext UpdateResult.UpdateAvailable(
+                    UpdateInfo(
+                        latestVersion = tagName,
+                        changelog = changelog,
+                        downloadUrl = apkUrl,
+                        isNewer = true
+                    )
                 )
             }
         } catch (e: Exception) {
-            e.printStackTrace()
-            return@withContext null
+            Log.e("AppUpdateManager", "Lỗi ngoại lệ khi checkUpdate", e)
+            return@withContext UpdateResult.NetworkError(e.localizedMessage ?: "Lỗi kết nối mạng")
         }
     }
 
@@ -101,7 +140,10 @@ class AppUpdateManager(private val context: Context) {
         try {
             val request = Request.Builder().url(downloadUrl).build()
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext null
+                if (!response.isSuccessful) {
+                    Log.e("AppUpdateManager", "Tải APK thất bại: HTTP ${response.code} ${response.message}")
+                    return@withContext null
+                }
                 val body = response.body ?: return@withContext null
                 val contentLength = body.contentLength()
 
@@ -133,17 +175,26 @@ class AppUpdateManager(private val context: Context) {
                 return@withContext apkFile
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("AppUpdateManager", "Lỗi tải tệp APK từ $downloadUrl", e)
             return@withContext null
         }
     }
 
     fun openInstallApk(apkFile: File) {
-        if (!apkFile.exists()) return
+        if (!apkFile.exists()) {
+            Log.e("AppUpdateManager", "Tệp APK cần cài đặt không tồn tại: ${apkFile.absolutePath}")
+            return
+        }
 
         // Kiểm tra quyền REQUEST_INSTALL_PACKAGES trên Android 8.0+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!context.packageManager.canRequestPackageInstalls()) {
+                Log.w("AppUpdateManager", "Chưa cấp quyền cài đặt ứng dụng không rõ nguồn gốc")
+                Toast.makeText(
+                    context,
+                    "Vui lòng cho phép cài đặt ứng dụng từ nguồn này để tiếp tục cập nhật",
+                    Toast.LENGTH_LONG
+                ).show()
                 val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                     data = Uri.parse("package:${context.packageName}")
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -153,18 +204,27 @@ class AppUpdateManager(private val context: Context) {
             }
         }
 
-        val apkUri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.provider",
-            apkFile
-        )
+        try {
+            val apkUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                apkFile
+            )
 
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(apkUri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(apkUri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e("AppUpdateManager", "Lỗi khi gọi intent mở trình cài đặt APK", e)
+            Toast.makeText(
+                context,
+                "Lỗi mở cài đặt: ${e.localizedMessage}",
+                Toast.LENGTH_SHORT
+            ).show()
         }
-        context.startActivity(intent)
     }
 
     private fun isVersionNewer(latest: String, current: String): Boolean {
