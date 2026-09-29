@@ -35,10 +35,15 @@ class UpdateDialogFragment : DialogFragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
     ): View {
         dialog?.window?.apply {
             requestFeature(Window.FEATURE_NO_TITLE)
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setDimAmount(0.45f)
         }
         _binding = DialogUpdateBinding.inflate(inflater, container, false)
         return binding.root
@@ -54,6 +59,10 @@ class UpdateDialogFragment : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        com.dinh.aicamera.ui.LiquidGlassHelper.setupGlass(binding.root)
+        com.dinh.aicamera.ui.LiquidGlassHelper.setupGlass(binding.changelogScroll)
+        com.dinh.aicamera.ui.LiquidGlassHelper.setupGlass(binding.btnLater)
+        com.dinh.aicamera.ui.LiquidGlassHelper.setupGlass(binding.btnUpdateNow)
 
         binding.tvUpdateVersion.text = "Phiên bản: $latestVersion"
         binding.tvChangelog.text = cleanChangelog(changelog)

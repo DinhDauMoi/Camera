@@ -6,12 +6,13 @@
     android:padding="4dp">
 
     <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.LievisCam.GlassCard"
         android:layout_width="match_parent"
         android:layout_height="120dp"
         app:cardBackgroundColor="@color/glass_surface"
-        app:cardCornerRadius="18dp"
+        app:cardCornerRadius="22dp"
         app:cardElevation="0dp"
-        app:strokeColor="@color/glass_stroke"
+        app:strokeColor="@color/glass_stroke_bright"
         app:strokeWidth="1dp">
 
         <ImageView

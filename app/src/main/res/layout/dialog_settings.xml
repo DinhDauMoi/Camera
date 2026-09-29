@@ -2,17 +2,17 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Widget.LievisCam.GlassDialog"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/bg_glass_card"
     android:padding="24dp">
 
     <!-- Top Handle Bar -->
     <View
         android:id="@+id/handleBar"
+        style="@style/Widget.LievisCam.GlassPill"
         android:layout_width="48dp"
         android:layout_height="4dp"
-        android:background="@drawable/bg_glass_pill"
         android:backgroundTint="@color/white_50"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -34,9 +34,9 @@
 
     <ImageButton
         android:id="@+id/btnCloseSettings"
+        style="@style/Widget.LievisCam.GlassCircle"
         android:layout_width="36dp"
         android:layout_height="36dp"
-        android:background="@drawable/bg_glass_circle"
         android:contentDescription="@string/app_name"
         android:src="@drawable/ic_close"
         app:layout_constraintBottom_toBottomOf="@id/tvSettingsTitle"
@@ -46,10 +46,10 @@
     <!-- Setting: Auto Zoom (Tự động zoom vừa khung hình) -->
     <LinearLayout
         android:id="@+id/rowAutoZoom"
+        style="@style/Widget.LievisCam.GlassPill"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
-        android:background="@drawable/bg_glass_pill"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="16dp"
@@ -77,10 +77,10 @@
     <!-- Setting: Auto update check -->
     <LinearLayout
         android:id="@+id/rowAutoUpdate"
+        style="@style/Widget.LievisCam.GlassPill"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:background="@drawable/bg_glass_pill"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="16dp"
@@ -108,18 +108,16 @@
     <!-- Setting: Check update now button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnCheckUpdateNow"
+        style="@style/Widget.LievisCam.GlassPill"
         android:layout_width="0dp"
         android:layout_height="48dp"
         android:layout_marginTop="14dp"
-        android:backgroundTint="@color/glass_surface"
         android:text="@string/setting_check_update_now"
         android:textColor="@color/accent_gold"
         app:cornerRadius="999dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/rowAutoUpdate"
-        app:strokeColor="@color/glass_stroke"
-        app:strokeWidth="1dp" />
+        app:layout_constraintTop_toBottomOf="@id/rowAutoUpdate" />
 
     <!-- Version Info -->
     <TextView
@@ -133,6 +131,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/btnCheckUpdateNow"
-        tools:text="AI Camera v1.0.0 (Doka Cam AI)" />
+        tools:text="Lievis Cam v1.0.6" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

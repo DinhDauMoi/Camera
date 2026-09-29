@@ -1,9 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <corners android:radius="999dp" />
-    <solid android:color="@color/accent_gold_glow" />
-    <stroke
-        android:width="1.5dp"
-        android:color="@color/accent_gold" />
-</shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Viền kính active: gradient vàng gold khúc xạ sáng rực rỡ -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="999dp" />
+            <gradient
+                android:angle="135"
+                android:startColor="#FFFFD54F"
+                android:centerColor="#FFFFB800"
+                android:endColor="#80FFB800"
+                android:type="linear" />
+        </shape>
+    </item>
+    <!-- Nền kính active: hổ phách gold glow + highlight phía trên -->
+    <item
+        android:top="1.5dp"
+        android:left="1.5dp"
+        android:right="1.5dp"
+        android:bottom="1.5dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="999dp" />
+            <gradient
+                android:angle="270"
+                android:startColor="#59FFB800"
+                android:centerColor="#33FFB800"
+                android:endColor="#240A0D14"
+                android:type="linear" />
+        </shape>
+    </item>
+</layer-list>

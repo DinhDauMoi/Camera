@@ -2,10 +2,10 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Widget.LievisCam.GlassDialog"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="24dp"
-    android:background="@drawable/bg_glass_card"
     android:padding="24dp">
 
     <ImageView
@@ -43,14 +43,14 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/ivUpdateIcon"
         app:layout_constraintTop_toBottomOf="@id/tvUpdateTitle"
-        tools:text="Phiên bản mới: v1.0.1" />
+        tools:text="Phiên bản mới: v1.0.6" />
 
     <ScrollView
         android:id="@+id/changelogScroll"
+        style="@style/Widget.LievisCam.GlassCard"
         android:layout_width="0dp"
         android:layout_height="130dp"
         android:layout_marginTop="16dp"
-        android:background="@drawable/bg_glass_pill"
         android:padding="12dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -107,21 +107,23 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnLater"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
+            style="@style/Widget.LievisCam.GlassPill"
             android:layout_width="wrap_content"
             android:layout_height="44dp"
-            android:layout_marginEnd="8dp"
+            android:layout_marginEnd="10dp"
+            android:paddingHorizontal="18dp"
             android:text="@string/update_dialog_btn_later"
             android:textColor="@color/white_70"
             app:cornerRadius="999dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnUpdateNow"
+            style="@style/Widget.LievisCam.GlassPill.Active"
             android:layout_width="wrap_content"
             android:layout_height="44dp"
-            android:backgroundTint="@color/accent_gold"
+            android:paddingHorizontal="18dp"
             android:text="@string/update_dialog_btn_update"
-            android:textColor="@color/black"
+            android:textColor="@color/accent_gold"
             android:textStyle="bold"
             app:cornerRadius="999dp" />
     </LinearLayout>

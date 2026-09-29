@@ -38,6 +38,12 @@ class SettingsBottomSheetDialog : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        LiquidGlassHelper.setupGlass(binding.root)
+        LiquidGlassHelper.setupGlass(binding.rowAutoZoom)
+        LiquidGlassHelper.setupGlass(binding.rowAutoUpdate)
+        LiquidGlassHelper.setupGlass(binding.btnCheckUpdateNow)
+        LiquidGlassHelper.setupGlass(binding.btnCloseSettings)
+
         preferences = AppPreferences(requireContext())
         updateManager = AppUpdateManager(requireContext())
 

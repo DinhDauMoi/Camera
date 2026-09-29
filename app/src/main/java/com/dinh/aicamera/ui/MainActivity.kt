@@ -213,10 +213,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupUI() {
-        // Thiết lập Liquid Glass đúng chuẩn: clipToOutline = true, không làm mờ nút bấm
-        LiquidGlassHelper.setupGlassPill(binding.topToolbar)
-        LiquidGlassHelper.setupGlassPill(binding.zoomPresetContainer)
-        LiquidGlassHelper.setupGlassPill(binding.bottomNavigationPill)
+        // Thiết lập Liquid Glass đúng chuẩn: clipToOutline = true cho tất cả view kính
+        LiquidGlassHelper.setupGlass(binding.topToolbar)
+        LiquidGlassHelper.setupGlass(binding.zoomPresetContainer)
+        LiquidGlassHelper.setupGlass(binding.bottomNavigationPill)
+        LiquidGlassHelper.setupGlass(binding.btnQuickPreview)
+        LiquidGlassHelper.setupGlass(binding.aiSuggestionBubble)
+        LiquidGlassHelper.setupGlass(binding.filterCarouselScroll)
+        LiquidGlassHelper.setupGlass(binding.autoCaptureBadge)
+        LiquidGlassHelper.setupGlass(binding.tvGalleryCount)
+        LiquidGlassHelper.setupGlass(binding.permissionCard)
 
         // 1. Nút Bật/Tắt AI (Mặc định TẮT)
         updateAiToggleUI()

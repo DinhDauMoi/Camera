@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base Liquid Glass Style -->
+    <style name="Widget.LievisCam.Glass">
+        <item name="android:clipToOutline">true</item>
+        <item name="android:elevation">6dp</item>
+    </style>
+
+    <!-- Glass Pill (50% bo tròn viên thuốc - toolbar, preset zoom, bottom tabs, suggestion bubble, badges) -->
+    <style name="Widget.LievisCam.GlassPill" parent="Widget.LievisCam.Glass">
+        <item name="android:background">@drawable/bg_glass_pill</item>
+    </style>
+
+    <!-- Glass Pill Active / Selected (Ánh vàng gold & viền khúc xạ sáng) -->
+    <style name="Widget.LievisCam.GlassPill.Active" parent="Widget.LievisCam.Glass">
+        <item name="android:background">@drawable/bg_glass_pill_active</item>
+    </style>
+
+    <!-- Glass Card (24dp bo tròn - thẻ nội dung, dialog card, item grid) -->
+    <style name="Widget.LievisCam.GlassCard" parent="Widget.LievisCam.Glass">
+        <item name="android:background">@drawable/bg_glass_card</item>
+    </style>
+
+    <!-- Glass Circle (Nút tròn - thumbnail preview, close button, icon button) -->
+    <style name="Widget.LievisCam.GlassCircle" parent="Widget.LievisCam.Glass">
+        <item name="android:background">@drawable/bg_glass_circle</item>
+        <item name="android:elevation">4dp</item>
+    </style>
+
+    <!-- Glass Dialog Surface (28dp bo tròn, chống tràn blur, viền khúc xạ tinh xảo) -->
+    <style name="Widget.LievisCam.GlassDialog" parent="Widget.LievisCam.Glass">
+        <item name="android:background">@drawable/bg_glass_dialog</item>
+        <item name="android:elevation">16dp</item>
+    </style>
+
+    <!-- Liquid Glass BottomSheet Theme -->
+    <style name="Theme.LievisCam.BottomSheetDialog" parent="Theme.Design.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Widget.LievisCam.BottomSheet</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDimAmount">0.45</item>
+    </style>
+
+    <style name="Widget.LievisCam.BottomSheet" parent="Widget.Design.BottomSheet.Modal">
+        <item name="android:background">@android:color/transparent</item>
+    </style>
+</resources>

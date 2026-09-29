@@ -1,8 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <stroke
-        android:width="4dp"
-        android:color="@color/white" />
-    <solid android:color="@android:color/transparent" />
-</shape>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Vòng tròn shutter ngoài kiểu Liquid Glass khúc xạ -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:angle="135"
+                android:startColor="#B3FFFFFF"
+                android:centerColor="#80FFFFFF"
+                android:endColor="#33FFFFFF"
+                android:type="linear" />
+        </shape>
+    </item>
+    <item
+        android:top="3.5dp"
+        android:left="3.5dp"
+        android:right="3.5dp"
+        android:bottom="3.5dp">
+        <shape android:shape="oval">
+            <solid android:color="#140A0D14" />
+        </shape>
+    </item>
+</layer-list>

@@ -17,7 +17,7 @@
     <color name="glass_surface_light">#26FFFFFF</color>
     <color name="glass_surface_dark">#800A0D14</color>
     <color name="glass_stroke">#33FFFFFF</color>
-    <color name="glass_stroke_bright">#66FFFFFF</color>
+    <color name="glass_stroke_bright">#80FFFFFF</color>
 
     <!-- Single Accent Color: Golden Amber (Kiểu Doka Cam / Leica) -->
     <color name="accent_gold">#FFB800</color>

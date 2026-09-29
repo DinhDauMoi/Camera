@@ -1,28 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Viền kính 1dp gradient khúc xạ tròn -->
+    <!-- Viền kính 1.2dp gradient khúc xạ cho Dialog bo tròn 28dp -->
     <item>
-        <shape android:shape="oval">
+        <shape android:shape="rectangle">
+            <corners android:radius="28dp" />
             <gradient
                 android:angle="135"
-                android:startColor="#80FFFFFF"
+                android:startColor="#99FFFFFF"
                 android:centerColor="#55FFFFFF"
                 android:endColor="#26FFFFFF"
                 android:type="linear" />
         </shape>
     </item>
-    <!-- Nền kính trong suốt + highlight -->
+    <!-- Nền kính sâu sang trọng cho Dialog (vừa thấy mờ camera nền, vừa dễ đọc chữ) -->
     <item
         android:top="1dp"
         android:left="1dp"
         android:right="1dp"
         android:bottom="1dp">
-        <shape android:shape="oval">
+        <shape android:shape="rectangle">
+            <corners android:radius="27dp" />
             <gradient
                 android:angle="270"
-                android:startColor="#2BFFFFFF"
-                android:centerColor="#1CFFFFFF"
-                android:endColor="#1E0A0D14"
+                android:startColor="#33FFFFFF"
+                android:centerColor="#E610141E"
+                android:endColor="#F20A0D14"
                 android:type="linear" />
         </shape>
     </item>

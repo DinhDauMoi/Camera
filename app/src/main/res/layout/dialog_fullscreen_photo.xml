@@ -19,12 +19,11 @@
     <!-- Top Floating Glass Toolbar -->
     <LinearLayout
         android:id="@+id/topBar"
+        style="@style/Widget.LievisCam.GlassPill"
         android:layout_width="0dp"
         android:layout_height="56dp"
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="48dp"
-        android:background="@drawable/bg_glass_pill"
-        android:elevation="10dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="12dp"
@@ -34,9 +33,9 @@
 
         <ImageButton
             android:id="@+id/btnClose"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            style="@style/Widget.LievisCam.GlassCircle"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
             android:contentDescription="@string/app_name"
             android:src="@drawable/ic_close" />
 
@@ -53,18 +52,18 @@
 
         <ImageButton
             android:id="@+id/btnShare"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            style="@style/Widget.LievisCam.GlassCircle"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
             android:contentDescription="@string/action_share"
             android:src="@drawable/ic_share" />
 
         <ImageButton
             android:id="@+id/btnDelete"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            style="@style/Widget.LievisCam.GlassCircle"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
             android:layout_marginStart="8dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/action_delete"
             android:src="@drawable/ic_delete"
             app:tint="@color/score_red" />

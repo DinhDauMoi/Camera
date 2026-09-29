@@ -41,12 +41,10 @@
         <!-- TOP BAR: Floating Glass Pill bo tròn hoàn toàn, không full-width, căn giữa phía trên, các nút bấm cực nhạy -->
         <LinearLayout
             android:id="@+id/topToolbar"
+            style="@style/Widget.LievisCam.GlassPill"
             android:layout_width="wrap_content"
             android:layout_height="52dp"
             android:layout_marginTop="48dp"
-            android:background="@drawable/bg_glass_pill"
-            android:clipToOutline="true"
-            android:elevation="4dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingHorizontal="12dp"
@@ -132,12 +130,10 @@
         <!-- Pill "AI gợi ý filter" (Đặt ở phía dưới trên thanh chụp, KHÔNG ĐÈ lên vòng điểm số ở góc trên) -->
         <LinearLayout
             android:id="@+id/aiSuggestionBubble"
+            style="@style/Widget.LievisCam.GlassPill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="14dp"
-            android:background="@drawable/bg_glass_pill"
-            android:clipToOutline="true"
-            android:elevation="6dp"
             android:gravity="center"
             android:orientation="horizontal"
             android:paddingHorizontal="16dp"
@@ -168,12 +164,10 @@
         <!-- Filter Selection Carousel (Floating glass container bo tròn) -->
         <HorizontalScrollView
             android:id="@+id/filterCarouselScroll"
+            style="@style/Widget.LievisCam.GlassPill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
-            android:background="@drawable/bg_glass_pill"
-            android:clipToOutline="true"
-            android:elevation="6dp"
             android:paddingHorizontal="10dp"
             android:paddingVertical="6dp"
             android:scrollbars="none"
@@ -194,12 +188,10 @@
         <!-- Hàng nút preset zoom (0.5x, 1x, 3x, 6x) kiểu Liquid Glass pill + text mức zoom realtime -->
         <LinearLayout
             android:id="@+id/zoomPresetContainer"
+            style="@style/Widget.LievisCam.GlassPill"
             android:layout_width="wrap_content"
             android:layout_height="38dp"
             android:layout_marginBottom="12dp"
-            android:background="@drawable/bg_glass_pill"
-            android:clipToOutline="true"
-            android:elevation="6dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingHorizontal="6dp"
@@ -287,11 +279,9 @@
             <!-- Thumbnail xem nhanh thư viện -->
             <FrameLayout
                 android:id="@+id/btnQuickPreview"
+                style="@style/Widget.LievisCam.GlassCircle"
                 android:layout_width="52dp"
                 android:layout_height="52dp"
-                android:background="@drawable/bg_glass_circle"
-                android:clipToOutline="true"
-                android:elevation="4dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
@@ -331,10 +321,9 @@
             <!-- Auto-Capture Indicator Status Pill (Chỉ hiện khi AI đang BẬT) -->
             <LinearLayout
                 android:id="@+id/autoCaptureBadge"
+                style="@style/Widget.LievisCam.GlassPill"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_glass_pill"
-                android:clipToOutline="true"
                 android:gravity="center"
                 android:orientation="horizontal"
                 android:paddingHorizontal="10dp"
@@ -403,11 +392,11 @@
 
             <TextView
                 android:id="@+id/tvGalleryCount"
+                style="@style/Widget.LievisCam.GlassPill"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_glass_pill"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="5dp"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="6dp"
                 android:textColor="@color/accent_gold"
                 android:textSize="12sp"
                 android:textStyle="bold"
@@ -440,10 +429,13 @@
 
         <TextView
             android:id="@+id/tvEmptyGallery"
+            style="@style/Widget.LievisCam.GlassPill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="12dp"
             android:text="@string/gallery_empty"
-            android:textColor="@color/white_50"
+            android:textColor="@color/white_70"
             android:textSize="15sp"
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -456,11 +448,10 @@
     <!-- ================= 3. FLOATING BOTTOM TAB PILL ================= -->
     <LinearLayout
         android:id="@+id/bottomNavigationPill"
+        style="@style/Widget.LievisCam.GlassPill"
         android:layout_width="wrap_content"
         android:layout_height="48dp"
         android:layout_marginBottom="16dp"
-        android:background="@drawable/bg_glass_pill"
-        android:clipToOutline="true"
         android:elevation="8dp"
         android:gravity="center"
         android:orientation="horizontal"
@@ -498,12 +489,10 @@
     <!-- Permission Request Overlay Card -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/permissionCard"
+        style="@style/Widget.LievisCam.GlassDialog"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="32dp"
-        android:background="@drawable/bg_glass_card"
-        android:clipToOutline="true"
-        android:elevation="20dp"
         android:padding="28dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -551,12 +540,13 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnGrantPermission"
+            style="@style/Widget.LievisCam.GlassPill.Active"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
             android:layout_marginTop="22dp"
-            android:backgroundTint="@color/accent_gold"
+            android:paddingHorizontal="28dp"
             android:text="@string/permission_grant_btn"
-            android:textColor="@color/black"
+            android:textColor="@color/accent_gold"
             android:textStyle="bold"
             app:cornerRadius="999dp"
             app:layout_constraintEnd_toEndOf="parent"

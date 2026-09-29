@@ -11,15 +11,19 @@ object LiquidGlassHelper {
     /**
      * Chuẩn hóa Liquid Glass:
      * - Luôn bật clipToOutline = true theo đường viền bo tròn hoàn toàn (chống vệt nhòe tràn ra ngoài).
-     * - Chỉ áp dụng RenderEffect trên background backdrop (Android 12+), giữ icon và chữ luôn sắc nét 100%.
+     * - Giữ icon và chữ bên trong sắc nét 100%.
      */
-    fun setupGlassPill(view: View) {
+    fun setupGlass(view: View) {
         view.outlineProvider = ViewOutlineProvider.BACKGROUND
         view.clipToOutline = true
     }
 
+    fun setupGlassPill(view: View) {
+        setupGlass(view)
+    }
+
     fun applyBlurEffect(backdropView: View, radiusDp: Float = 16f) {
-        setupGlassPill(backdropView)
+        setupGlass(backdropView)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val radiusPx = radiusDp * backdropView.resources.displayMetrics.density
             val blurEffect = RenderEffect.createBlurEffect(radiusPx, radiusPx, Shader.TileMode.CLAMP)

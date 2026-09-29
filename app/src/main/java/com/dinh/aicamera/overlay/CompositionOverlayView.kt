@@ -128,8 +128,8 @@ class CompositionOverlayView @JvmOverloads constructor(
     }
 
     private val guidanceStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = ContextCompat.getColor(context, R.color.glass_stroke)
-        strokeWidth = 1f * resources.displayMetrics.density
+        color = ContextCompat.getColor(context, R.color.glass_stroke_bright)
+        strokeWidth = 1.2f * resources.displayMetrics.density
         style = Paint.Style.STROKE
     }
 

@@ -66,6 +66,11 @@ class FullscreenPhotoDialog : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        com.dinh.aicamera.ui.LiquidGlassHelper.setupGlass(binding.topBar)
+        com.dinh.aicamera.ui.LiquidGlassHelper.setupGlass(binding.btnClose)
+        com.dinh.aicamera.ui.LiquidGlassHelper.setupGlass(binding.btnShare)
+        com.dinh.aicamera.ui.LiquidGlassHelper.setupGlass(binding.btnDelete)
+
         val adapter = GalleryAdapter(photoUris)
         binding.photoViewPager.adapter = adapter
         binding.photoViewPager.setCurrentItem(initialPosition, false)
