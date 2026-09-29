@@ -60,7 +60,9 @@
             android:id="@+id/tvChangelog"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:autoLink="web"
             android:textColor="@color/white_90"
+            android:textColorLink="@color/accent_gold"
             android:textSize="13sp"
             tools:text="- Cải thiện độ mượt AI\n- Thêm tab Thư viện riêng\n- Sửa lỗi crash camera" />
     </ScrollView>

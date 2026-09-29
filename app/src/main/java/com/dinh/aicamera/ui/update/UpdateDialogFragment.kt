@@ -44,11 +44,19 @@ class UpdateDialogFragment : DialogFragment() {
         return binding.root
     }
 
+    override fun onStart() {
+        super.onStart()
+        dialog?.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.9).toInt(),
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         binding.tvUpdateVersion.text = "Phiên bản: $latestVersion"
-        binding.tvChangelog.text = changelog
+        binding.tvChangelog.text = cleanChangelog(changelog)
 
         binding.btnLater.setOnClickListener {
             // Lưu version bỏ qua vào Preferences để tránh spam
@@ -60,6 +68,18 @@ class UpdateDialogFragment : DialogFragment() {
         binding.btnUpdateNow.setOnClickListener {
             startDownload()
         }
+    }
+
+    private fun cleanChangelog(raw: String): String {
+        return raw.lines()
+            .filterNot { line ->
+                val trimmed = line.trim()
+                trimmed.contains("Full Changelog", ignoreCase = true)
+            }
+            .joinToString("\n")
+            .replace("**", "")
+            .trim()
+            .ifEmpty { "Cập nhật tính năng mới và sửa lỗi" }
     }
 
     private fun startDownload() {
