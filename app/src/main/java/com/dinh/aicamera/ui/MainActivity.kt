@@ -266,7 +266,8 @@ class MainActivity : AppCompatActivity() {
                     try {
                         FullscreenPhotoDialog.newInstance(
                             uris = listOf(uri),
-                            startPosition = 0
+                            startPosition = 0,
+                            onDeleted = {}
                         ).show(supportFragmentManager, FullscreenPhotoDialog.TAG)
                     } catch (_: Exception) {}
                 }

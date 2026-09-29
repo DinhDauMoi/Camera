@@ -176,7 +176,7 @@ class FullscreenPhotoDialog : DialogFragment() {
         fun newInstance(
             uris: List<Uri>,
             startPosition: Int,
-            onDeleted: (Int) -> Unit
+            onDeleted: (Int) -> Unit = {}
         ) = FullscreenPhotoDialog().apply {
             photoUris.clear()
             photoUris.addAll(uris)
