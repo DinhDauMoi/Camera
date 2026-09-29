@@ -5,9 +5,12 @@ import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.database.ContentObserver
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -25,6 +28,7 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ZoomState
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.dinh.aicamera.R
@@ -38,6 +42,7 @@ import com.dinh.aicamera.databinding.ActivityMainBinding
 import com.dinh.aicamera.filter.AIFilterRecommender
 import com.dinh.aicamera.filter.FilterType
 import com.dinh.aicamera.ui.gallery.FullscreenPhotoDialog
+import com.dinh.aicamera.ui.gallery.GalleryGridAdapter
 import com.dinh.aicamera.ui.update.AppUpdateManager
 import com.dinh.aicamera.ui.update.UpdateDialogFragment
 import com.dinh.aicamera.ui.update.UpdateResult
@@ -74,6 +79,28 @@ class MainActivity : AppCompatActivity() {
     private lateinit var scaleGestureDetector: ScaleGestureDetector
     private lateinit var gestureDetector: GestureDetector
 
+    // Gallery Tab State (Cached in memory, load on IO, 0ms tab switch lag)
+    private val cachedGalleryUris = mutableListOf<Uri>()
+    private lateinit var galleryAdapter: GalleryGridAdapter
+    private var isGalleryLoaded: Boolean = false
+    private var isGalleryLoading: Boolean = false
+    private var isGalleryDirty: Boolean = true
+
+    private val mediaStoreObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean, uri: Uri?) {
+            super.onChange(selfChange, uri)
+            isGalleryDirty = true
+        }
+    }
+
+    private val storagePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            loadGalleryPhotos()
+        }
+    }
+
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -96,7 +123,14 @@ class MainActivity : AppCompatActivity() {
         initAIEngines()
         setupUI()
         setupSensors()
+        setupGalleryTab()
         checkCameraPermission()
+
+        contentResolver.registerContentObserver(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            true,
+            mediaStoreObserver
+        )
 
         autoCheckAppUpdate()
     }
@@ -182,6 +216,7 @@ class MainActivity : AppCompatActivity() {
         // Thiết lập Liquid Glass đúng chuẩn: clipToOutline = true, không làm mờ nút bấm
         LiquidGlassHelper.setupGlassPill(binding.topToolbar)
         LiquidGlassHelper.setupGlassPill(binding.zoomPresetContainer)
+        LiquidGlassHelper.setupGlassPill(binding.bottomNavigationPill)
 
         // 1. Nút Bật/Tắt AI (Mặc định TẮT)
         updateAiToggleUI()
@@ -253,33 +288,17 @@ class MainActivity : AppCompatActivity() {
             binding.filterCarouselScroll.visibility = if (isVisible) View.GONE else View.VISIBLE
         }
 
-        // 8. Xem nhanh ảnh vừa chụp
+        // 8. Xem nhanh ảnh vừa chụp -> Mở tab Thư viện
         binding.btnQuickPreview.setOnClickListener {
-            val uri = lastCapturedUri
-            if (uri != null) {
-                try {
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(uri, "image/*")
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    try {
-                        FullscreenPhotoDialog.newInstance(
-                            uris = listOf(uri),
-                            startPosition = 0,
-                            onDeleted = {}
-                        ).show(supportFragmentManager, FullscreenPhotoDialog.TAG)
-                    } catch (_: Exception) {}
-                }
-            } else {
-                try {
-                    val intent = Intent(Intent.ACTION_VIEW, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-                    startActivity(intent)
-                } catch (_: Exception) {
-                    Toast.makeText(this, "Chưa có ảnh nào vừa chụp", Toast.LENGTH_SHORT).show()
-                }
-            }
+            switchTab(isCamera = false)
+        }
+
+        // Chuyển tab Máy ảnh & Thư viện
+        binding.tabBtnCamera.setOnClickListener {
+            switchTab(isCamera = true)
+        }
+        binding.tabBtnGallery.setOnClickListener {
+            switchTab(isCamera = false)
         }
 
         // Cấp quyền camera
@@ -404,20 +423,113 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadLatestThumbnail() {
+    private fun switchTab(isCamera: Boolean) {
+        if (isCamera) {
+            binding.cameraTabContainer.visibility = View.VISIBLE
+            binding.galleryTabContainer.visibility = View.GONE
+            binding.tabBtnCamera.setBackgroundResource(R.drawable.bg_glass_pill_active)
+            binding.tabBtnCamera.setTextColor(ContextCompat.getColor(this, R.color.accent_gold))
+            binding.tabBtnGallery.background = null
+            binding.tabBtnGallery.setTextColor(ContextCompat.getColor(this, R.color.white_70))
+        } else {
+            binding.cameraTabContainer.visibility = View.GONE
+            binding.galleryTabContainer.visibility = View.VISIBLE
+            binding.tabBtnGallery.setBackgroundResource(R.drawable.bg_glass_pill_active)
+            binding.tabBtnGallery.setTextColor(ContextCompat.getColor(this, R.color.accent_gold))
+            binding.tabBtnCamera.background = null
+            binding.tabBtnCamera.setTextColor(ContextCompat.getColor(this, R.color.white_70))
+
+            checkStoragePermissionAndLoadGallery()
+        }
+    }
+
+    private fun setupGalleryTab() {
+        binding.rvGalleryGrid.apply {
+            layoutManager = GridLayoutManager(this@MainActivity, 3)
+            setHasFixedSize(true)
+            itemAnimator = null
+        }
+        galleryAdapter = GalleryGridAdapter { position ->
+            if (position in 0 until cachedGalleryUris.size) {
+                FullscreenPhotoDialog.newInstance(
+                    uris = cachedGalleryUris.toList(),
+                    startPosition = position,
+                    onDeleted = { deletedPos ->
+                        if (deletedPos in 0 until cachedGalleryUris.size) {
+                            cachedGalleryUris.removeAt(deletedPos)
+                            galleryAdapter.submitList(cachedGalleryUris.toList())
+                            updateGalleryCount(cachedGalleryUris.size)
+                            if (cachedGalleryUris.isNotEmpty()) {
+                                val first = cachedGalleryUris.first()
+                                binding.ivQuickThumbnail.load(first) {
+                                    transformations(CircleCropTransformation())
+                                    crossfade(true)
+                                }
+                                lastCapturedUri = first
+                            } else {
+                                binding.ivQuickThumbnail.setImageResource(R.drawable.ic_gallery)
+                                lastCapturedUri = null
+                            }
+                        }
+                    }
+                ).show(supportFragmentManager, FullscreenPhotoDialog.TAG)
+            }
+        }
+        binding.rvGalleryGrid.adapter = galleryAdapter
+    }
+
+    private fun checkStoragePermissionAndLoadGallery() {
+        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+
+        if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
+            if (!isGalleryLoaded || isGalleryDirty) {
+                loadGalleryPhotos()
+            }
+        } else {
+            storagePermissionLauncher.launch(permission)
+        }
+    }
+
+    private fun loadGalleryPhotos() {
+        if (isGalleryLoading) return
+        isGalleryLoading = true
+
+        if (cachedGalleryUris.isEmpty()) {
+            binding.galleryLoadingProgress.visibility = View.VISIBLE
+            binding.tvEmptyGallery.visibility = View.GONE
+        }
+
         lifecycleScope.launch {
-            val uri = queryLatestMediaStorePhoto()
-            if (uri != null) {
-                lastCapturedUri = uri
-                binding.ivQuickThumbnail.load(uri) {
+            val photos = withContext(Dispatchers.IO) {
+                queryMediaStorePhotos(limit = 100)
+            }
+            isGalleryLoading = false
+            isGalleryLoaded = true
+            isGalleryDirty = false
+            binding.galleryLoadingProgress.visibility = View.GONE
+
+            cachedGalleryUris.clear()
+            cachedGalleryUris.addAll(photos)
+            galleryAdapter.submitList(cachedGalleryUris.toList())
+            updateGalleryCount(cachedGalleryUris.size)
+
+            if (photos.isNotEmpty()) {
+                val first = photos.first()
+                binding.ivQuickThumbnail.load(first) {
                     transformations(CircleCropTransformation())
                     crossfade(true)
                 }
+                lastCapturedUri = first
             }
         }
     }
 
-    private suspend fun queryLatestMediaStorePhoto(): Uri? = withContext(Dispatchers.IO) {
+    private suspend fun queryMediaStorePhotos(limit: Int = 100): List<Uri> = withContext(Dispatchers.IO) {
+        val photoList = mutableListOf<Uri>()
         val projection = arrayOf(MediaStore.Images.Media._ID)
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
         try {
@@ -428,16 +540,46 @@ class MainActivity : AppCompatActivity() {
                 null,
                 sortOrder
             )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
-                    return@withContext ContentUris.withAppendedId(
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                var count = 0
+                while (cursor.moveToNext() && count < limit) {
+                    val id = cursor.getLong(idColumn)
+                    val contentUri = ContentUris.withAppendedId(
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                         id
                     )
+                    photoList.add(contentUri)
+                    count++
                 }
             }
         } catch (_: Exception) {}
-        null
+        photoList
+    }
+
+    private fun updateGalleryCount(count: Int) {
+        if (count == 0) {
+            binding.tvEmptyGallery.visibility = View.VISIBLE
+            binding.tvGalleryCount.text = "0 ảnh"
+        } else {
+            binding.tvEmptyGallery.visibility = View.GONE
+            binding.tvGalleryCount.text = "$count ảnh"
+        }
+    }
+
+    private fun loadLatestThumbnail() {
+        lifecycleScope.launch {
+            val photos = withContext(Dispatchers.IO) {
+                queryMediaStorePhotos(limit = 1)
+            }
+            if (photos.isNotEmpty()) {
+                val uri = photos.first()
+                lastCapturedUri = uri
+                binding.ivQuickThumbnail.load(uri) {
+                    transformations(CircleCropTransformation())
+                    crossfade(true)
+                }
+            }
+        }
     }
 
     private fun populateFilterCarousel() {
@@ -567,6 +709,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         lastCapturedUri = uri
+        cachedGalleryUris.add(0, uri)
+        galleryAdapter.submitList(cachedGalleryUris.toList())
+        updateGalleryCount(cachedGalleryUris.size)
+        isGalleryDirty = false
     }
 
     private fun updateFlashIcon(mode: Int) {
@@ -665,6 +811,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        try {
+            contentResolver.unregisterContentObserver(mediaStoreObserver)
+        } catch (_: Exception) {}
         if (::cameraManager.isInitialized) {
             cameraManager.shutdown()
         }
