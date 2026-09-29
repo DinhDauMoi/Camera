@@ -184,8 +184,8 @@ class CompositionOverlayView @JvmOverloads constructor(
         val h = height.toFloat()
         if (w <= 0f || h <= 0f) return
 
-        // 1. Vẽ lưới 1/3 (tự hiện khi AI BẬT hoặc khi bật toggle Lưới riêng)
-        val shouldDrawGrid = isAiEnabled || isGridEnabled
+        // 1. Vẽ lưới 1/3 (chỉ theo toggle Lưới của user)
+        val shouldDrawGrid = isGridEnabled
         if (shouldDrawGrid) {
             drawRuleOfThirdsGrid(canvas, w, h)
         }
