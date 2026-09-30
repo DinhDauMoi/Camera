@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
+import android.os.SystemClock
 import android.util.Log
 import androidx.camera.core.ImageProxy
 import org.tensorflow.lite.Interpreter
@@ -17,6 +18,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
@@ -39,6 +41,7 @@ class YoloDetector(
 ) {
     companion object {
         private const val TAG = "YoloDetector"
+        // Giảm xuống 416 nếu YOLO11s vẫn chậm trên máy yếu; 11s@416 vẫn chuẩn hơn 11n@640
         private const val INPUT_SIZE = 640
         private const val NUM_CLASSES = 80
         private const val NUM_COORDINATES = 4
@@ -47,6 +50,8 @@ class YoloDetector(
 
     private var interpreter: Interpreter? = null
     private var gpuDelegate: GpuDelegate? = null
+    private val inferenceLock = Any()
+    private val isWarmingUp = AtomicBoolean(false)
 
     // Direct ByteBuffer for model input: 1 * 640 * 640 * 3 * 4 bytes (Float32)
     private val inputBuffer: ByteBuffer = ByteBuffer.allocateDirect(1 * INPUT_SIZE * INPUT_SIZE * 3 * 4).apply {
@@ -115,10 +120,39 @@ class YoloDetector(
                     numPredictions = 8400
                     outputArray3D = Array(1) { Array(NUM_FEATURES) { FloatArray(8400) } }
                 }
+
+                // Warmup dummy inference on background thread
+                startWarmup(interp)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load YOLO model: $modelPath", e)
         }
+    }
+
+    private fun startWarmup(interp: Interpreter) {
+        isWarmingUp.set(true)
+        Thread({
+            val t0 = SystemClock.elapsedRealtime()
+            try {
+                val dummyInput = ByteBuffer.allocateDirect(1 * INPUT_SIZE * INPUT_SIZE * 3 * 4).apply {
+                    order(ByteOrder.nativeOrder())
+                }
+                val dummyOutput = if (isTransposedOutput) {
+                    Array(1) { Array(NUM_FEATURES) { FloatArray(numPredictions) } }
+                } else {
+                    Array(1) { Array(numPredictions) { FloatArray(NUM_FEATURES) } }
+                }
+                synchronized(inferenceLock) {
+                    interp.run(dummyInput, dummyOutput)
+                }
+                val ms = SystemClock.elapsedRealtime() - t0
+                Log.i(TAG, "YOLO warmup done in ${ms}ms")
+            } catch (e: Throwable) {
+                Log.w(TAG, "YOLO warmup failed: ${e.message}")
+            } finally {
+                isWarmingUp.set(false)
+            }
+        }, "yolo-warmup").start()
     }
 
     private fun loadModelFile(context: Context, path: String): MappedByteBuffer {
@@ -133,9 +167,13 @@ class YoloDetector(
      * Returns detection boxes in upright image space.
      */
     fun detect(imageProxy: ImageProxy): List<YoloDetection> {
+        if (isWarmingUp.get()) {
+            return emptyList()
+        }
         val interp = interpreter ?: return emptyList()
         val outBuffer = outputArray3D ?: return emptyList()
 
+        val tStart = SystemClock.elapsedRealtime()
         var sourceBitmap: Bitmap? = null
         try {
             sourceBitmap = imageProxy.toBitmap()
@@ -200,10 +238,19 @@ class YoloDetector(
                 }
             }
 
+            val tBeforeInf = SystemClock.elapsedRealtime()
+            val pp = tBeforeInf - tStart
+
             // Run inference
-            interp.run(inputBuffer, outBuffer)
+            val tInfStart = SystemClock.elapsedRealtime()
+            synchronized(inferenceLock) {
+                interp.run(inputBuffer, outBuffer)
+            }
+            val tInfEnd = SystemClock.elapsedRealtime()
+            val inf = tInfEnd - tInfStart
 
             // Parse predictions
+            val tParseStart = tInfEnd
             val candidates = mutableListOf<YoloDetection>()
 
             if (isTransposedOutput) {
@@ -290,7 +337,16 @@ class YoloDetector(
             }
 
             // Apply Non-Maximum Suppression (NMS)
-            return applyNMS(candidates, iouThreshold, maxDetections = 10)
+            val result = applyNMS(candidates, iouThreshold, maxDetections = 10)
+            val tParseEnd = SystemClock.elapsedRealtime()
+            val pa = tParseEnd - tParseStart
+            val tot = tParseEnd - tStart
+
+            if (inf > 150) {
+                Log.d(TAG, "detect: preprocess=${pp}ms inference=${inf}ms parse=${pa}ms total=${tot}ms")
+            }
+
+            return result
         } catch (e: Throwable) {
             Log.e(TAG, "Detection error: ${e.message}", e)
             return emptyList()
@@ -343,10 +399,12 @@ class YoloDetector(
 
     fun close() {
         try {
-            interpreter?.close()
-            interpreter = null
-            gpuDelegate?.close()
-            gpuDelegate = null
+            synchronized(inferenceLock) {
+                interpreter?.close()
+                interpreter = null
+                gpuDelegate?.close()
+                gpuDelegate = null
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Error closing YoloDetector: ${e.message}")
         }
