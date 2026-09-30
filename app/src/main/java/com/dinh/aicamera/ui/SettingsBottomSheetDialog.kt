@@ -60,7 +60,7 @@ class SettingsBottomSheetDialog : BottomSheetDialogFragment() {
             preferences.isAutoCheckUpdate = isChecked
         }
 
-        binding.tvAppVersionInfo.text = "AI Camera v${BuildConfig.VERSION_NAME} (Doka Cam AI)"
+        binding.tvAppVersionInfo.text = "Lievis Cam v${BuildConfig.VERSION_NAME}"
 
         binding.btnCloseSettings.setOnClickListener {
             dismiss()

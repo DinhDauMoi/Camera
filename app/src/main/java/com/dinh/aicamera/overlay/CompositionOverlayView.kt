@@ -61,7 +61,7 @@ class CompositionOverlayView @JvmOverloads constructor(
     private var targetX: Float = 0f
     private var targetY: Float = 0f
 
-    // Morphing Doka-style Ring -> Frame variables
+    // Morphing Lievis Ring -> Frame variables
     private val morphRect = RectF()
     private var morphCornerRadius: Float = 0f
     private var animatedRingRadius: Float = 12f
@@ -475,7 +475,7 @@ class CompositionOverlayView @JvmOverloads constructor(
             canvas.drawRoundRect(morphRect, morphCornerRadius, morphCornerRadius, targetRingPaint)
             canvas.drawCircle(targetX, targetY, 2.5f * dp, targetRingPaint)
         } else {
-            // ALIGNED: Vòng tròn nở & morph thành KHUNG chữ nhật bo tròn ôm quanh subjectBounds (chuẩn Doka)
+            // ALIGNED: Vòng tròn nở & morph thành KHUNG chữ nhật bo tròn ôm quanh subjectBounds (chuẩn Lievis Cam)
             val box = currentState.subjectBounds
             val padding = 6f * dp
             val destRect = if (!box.isEmpty) {

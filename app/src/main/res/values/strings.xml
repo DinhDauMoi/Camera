@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Lievis Cam</string>
-    <string name="camera_permission_rationale">AI Camera cần quyền truy cập Camera để chụp ảnh và phân tích bố cục.</string>
+    <string name="camera_permission_rationale">Lievis Cam cần quyền truy cập Camera để chụp ảnh và phân tích bố cục.</string>
     <string name="storage_permission_rationale">Cần cấp quyền đọc ảnh để hiển thị hình ảnh trong Thư viện.</string>
     <string name="permission_grant_btn">Cho phép truy cập</string>
 
