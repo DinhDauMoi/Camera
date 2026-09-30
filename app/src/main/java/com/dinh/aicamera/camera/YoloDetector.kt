@@ -30,18 +30,18 @@ data class YoloDetection(
 )
 
 /**
- * YOLO11s On-Device Detector using TensorFlow Lite
+ * YOLOv12n On-Device Detector using TensorFlow Lite
  * Runs offline with GPU acceleration and 4-thread CPU fallback.
  */
 class YoloDetector(
     context: Context,
-    private val modelPath: String = "yolo11s.tflite",
+    private val modelPath: String = "yolo12n.tflite",
     private val confThreshold: Float = 0.35f,
     private val iouThreshold: Float = 0.45f
 ) {
     companion object {
         private const val TAG = "YoloDetector"
-        // Giảm xuống 416 nếu YOLO11s vẫn chậm trên máy yếu; 11s@416 vẫn chuẩn hơn 11n@640
+        // Giảm xuống 416 nếu model vẫn chậm trên máy yếu; 12n@416 vẫn rất chuẩn
         private const val INPUT_SIZE = 640
         private const val NUM_CLASSES = 80
         private const val NUM_COORDINATES = 4
