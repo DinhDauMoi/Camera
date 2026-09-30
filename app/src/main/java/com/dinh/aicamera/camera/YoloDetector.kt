@@ -28,12 +28,12 @@ data class YoloDetection(
 )
 
 /**
- * YOLO11n On-Device Detector using TensorFlow Lite
+ * YOLO11s On-Device Detector using TensorFlow Lite
  * Runs offline with GPU acceleration and 4-thread CPU fallback.
  */
 class YoloDetector(
     context: Context,
-    private val modelPath: String = "yolo11n.tflite",
+    private val modelPath: String = "yolo11s.tflite",
     private val confThreshold: Float = 0.35f,
     private val iouThreshold: Float = 0.45f
 ) {
