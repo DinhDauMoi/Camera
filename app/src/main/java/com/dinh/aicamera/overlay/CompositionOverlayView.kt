@@ -3,6 +3,7 @@ package com.dinh.aicamera.overlay
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
@@ -45,11 +46,46 @@ class CompositionOverlayView @JvmOverloads constructor(
             invalidate()
         }
 
-    var isGridEnabled: Boolean = false
+    var gridMode: Int = 0
         set(value) {
             field = value
-            invalidate()
+            postInvalidateOnAnimation()
         }
+
+    var isHistogramEnabled: Boolean = false
+        set(value) {
+            field = value
+            postInvalidateOnAnimation()
+        }
+
+    var histogram: IntArray? = null
+        set(value) {
+            field = value
+            if (isHistogramEnabled) {
+                postInvalidateOnAnimation()
+            }
+        }
+
+    var isPoseGuideEnabled: Boolean = false
+        set(value) {
+            field = value
+            postInvalidateOnAnimation()
+        }
+
+    var isLevelEnabled: Boolean = false
+        set(value) {
+            field = value
+            postInvalidateOnAnimation()
+        }
+
+    private var manualRollAngle: Float = 0f
+
+    fun setLevelAngle(roll: Float) {
+        manualRollAngle = roll
+        if (isLevelEnabled) {
+            postInvalidateOnAnimation()
+        }
+    }
 
     private var currentState: CompositionState = CompositionState()
 
@@ -74,6 +110,41 @@ class CompositionOverlayView @JvmOverloads constructor(
         color = ContextCompat.getColor(context, R.color.grid_line)
         strokeWidth = 1.2f * resources.displayMetrics.density
         style = Paint.Style.STROKE
+    }
+
+    private val poseGuidePaint by lazy {
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeWidth = 2.5f * resources.displayMetrics.density
+            pathEffect = DashPathEffect(
+                floatArrayOf(10f * resources.displayMetrics.density, 8f * resources.displayMetrics.density),
+                0f
+            )
+            strokeCap = Paint.Cap.ROUND
+        }
+    }
+
+    private val histBgPaint by lazy {
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(170, 0, 0, 0)
+            style = Paint.Style.FILL
+        }
+    }
+
+    private val histBarPaint by lazy {
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.FILL
+        }
+    }
+
+    private val histBorderPaint by lazy {
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(200, 0, 0, 0)
+            style = Paint.Style.STROKE
+            strokeWidth = 1f * resources.displayMetrics.density
+        }
     }
 
     private val targetRingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -343,10 +414,24 @@ class CompositionOverlayView @JvmOverloads constructor(
         val h = height.toFloat()
         if (w <= 0f || h <= 0f) return
 
-        // 1. Vẽ lưới 1/3 (chỉ theo toggle Lưới của user)
-        val shouldDrawGrid = isGridEnabled
-        if (shouldDrawGrid) {
-            drawRuleOfThirdsGrid(canvas, w, h)
+        // 1. Vẽ lưới theo kiểu (độc lập với AI)
+        if (gridMode > 0) {
+            drawGridByMode(canvas, w, h)
+        }
+
+        // 2. Pose guide (độc lập với AI)
+        if (isPoseGuideEnabled) {
+            drawPoseGuide(canvas, w, h)
+        }
+
+        // 3. Thước cân bằng (độc lập với AI)
+        if (isLevelEnabled) {
+            drawHorizonIndicator(canvas, w, h)
+        }
+
+        // 4. Histogram realtime (độc lập với AI)
+        if (isHistogramEnabled && histogram != null) {
+            drawHistogram(canvas, w, h)
         }
 
         // Nếu AI TẮT: dừng vẽ toàn bộ AR, trả về camera thường sạch sẽ
@@ -354,9 +439,6 @@ class CompositionOverlayView @JvmOverloads constructor(
 
         // Layer vẽ: dưới guide AI hiện có, trên preview (§5)
         drawSuggestionDotsAndGuide(canvas, w, h)
-
-        // Thước cân bằng chân trời
-        drawHorizonIndicator(canvas, w, h)
 
         // Phân nhánh vẽ theo 3 Bước rõ ràng (chỉ hiện khi chưa chọn chấm hoặc legacy guide được bật)
         if (isLegacyGuideVisible && selectedSuggestionId == null) {
@@ -386,6 +468,36 @@ class CompositionOverlayView @JvmOverloads constructor(
         }
     }
 
+    private fun drawGridByMode(canvas: Canvas, w: Float, h: Float) {
+        when (gridMode) {
+            1 -> drawRuleOfThirdsGrid(canvas, w, h)
+            2 -> {
+                // Golden ratio: 0.382w / 0.618w, 0.382h / 0.618h
+                val x1 = 0.382f * w
+                val x2 = 0.618f * w
+                val y1 = 0.382f * h
+                val y2 = 0.618f * h
+                canvas.drawLine(x1, 0f, x1, h, gridPaint)
+                canvas.drawLine(x2, 0f, x2, h, gridPaint)
+                canvas.drawLine(0f, y1, w, y1, gridPaint)
+                canvas.drawLine(0f, y2, w, y2, gridPaint)
+            }
+            3 -> {
+                // Đường chéo: 2 đường chéo góc-đối-góc
+                canvas.drawLine(0f, 0f, w, h, gridPaint)
+                canvas.drawLine(w, 0f, 0f, h, gridPaint)
+            }
+            4 -> {
+                // Trung tâm: chữ thập giữa + hình chữ nhật ở giữa (rộng 1/2, cao 1/2)
+                val midX = w / 2f
+                val midY = h / 2f
+                canvas.drawLine(midX, 0f, midX, h, gridPaint)
+                canvas.drawLine(0f, midY, w, midY, gridPaint)
+                canvas.drawRect(w * 0.25f, h * 0.25f, w * 0.75f, h * 0.75f, gridPaint)
+            }
+        }
+    }
+
     private fun drawRuleOfThirdsGrid(canvas: Canvas, w: Float, h: Float) {
         val x1 = w / 3f
         val x2 = w * 2f / 3f
@@ -398,11 +510,88 @@ class CompositionOverlayView @JvmOverloads constructor(
         canvas.drawLine(0f, y2, w, y2, gridPaint)
     }
 
+    private fun drawPoseGuide(canvas: Canvas, w: Float, h: Float) {
+        val density = resources.displayMetrics.density
+        val totalH = h * 0.70f
+        val topY = h * 0.15f
+        val bottomY = topY + totalH
+        val cx = w / 2f
+
+        // 1. Đầu: vòng tròn đường kính ~13% totalH
+        val headRadius = totalH * 0.065f
+        val headCenterY = topY + headRadius
+        canvas.drawCircle(cx, headCenterY, headRadius, poseGuidePaint)
+
+        // 2. Thân: đường capsule từ cổ xuống hông
+        val neckY = headCenterY + headRadius + 4f * density
+        val hipY = topY + totalH * 0.48f
+        val shoulderWidth = totalH * 0.14f
+        val torsoRect = RectF(cx - shoulderWidth / 2f, neckY, cx + shoulderWidth / 2f, hipY)
+        val torsoRadius = 14f * density
+        canvas.drawRoundRect(torsoRect, torsoRadius, torsoRadius, poseGuidePaint)
+
+        // 3. Tay: hai đường thẳng từ vai xuống gần hông
+        val armTopY = neckY + 8f * density
+        val armBottomY = hipY + 12f * density
+        val armSpread = shoulderWidth / 2f + 16f * density
+        canvas.drawLine(cx - shoulderWidth / 2f, armTopY, cx - armSpread, armBottomY, poseGuidePaint)
+        canvas.drawLine(cx + shoulderWidth / 2f, armTopY, cx + armSpread, armBottomY, poseGuidePaint)
+
+        // 4. Chân: hai đường thẳng từ hông xuống dưới đáy
+        val legSpacing = 16f * density
+        canvas.drawLine(cx - legSpacing, hipY, cx - legSpacing * 1.2f, bottomY, poseGuidePaint)
+        canvas.drawLine(cx + legSpacing, hipY, cx + legSpacing * 1.2f, bottomY, poseGuidePaint)
+    }
+
+    private fun drawHistogram(canvas: Canvas, w: Float, h: Float) {
+        val hist = histogram ?: return
+        if (hist.size != 24) return
+
+        val density = resources.displayMetrics.density
+        val cardW = 100f * density
+        val cardH = 48f * density
+        val marginR = 14f * density
+        val marginT = 76f * density
+
+        val left = w - marginR - cardW
+        val top = marginT
+        val right = left + cardW
+        val bottom = top + cardH
+
+        // Nền đen mờ
+        val bgRect = RectF(left, top, right, bottom)
+        canvas.drawRoundRect(bgRect, 8f * density, 8f * density, histBgPaint)
+
+        val padding = 4f * density
+        val chartLeft = left + padding
+        val chartRight = right - padding
+        val chartBottom = bottom - padding
+        val chartW = chartRight - chartLeft
+        val chartH = chartBottom - (top + padding)
+
+        val maxVal = maxOf(hist.maxOrNull() ?: 1, 1).toFloat()
+        val numBars = 24
+        val barWidth = chartW / numBars.toFloat()
+
+        for (i in 0 until numBars) {
+            val v = hist[i]
+            val barH = (v / maxVal * chartH).coerceIn(1f * density, chartH)
+            val bx1 = chartLeft + i * barWidth
+            val bx2 = bx1 + barWidth - 0.5f * density
+            val by1 = chartBottom - barH
+            val by2 = chartBottom
+
+            val barRect = RectF(bx1, by1, bx2, by2)
+            canvas.drawRect(barRect, histBarPaint)
+            canvas.drawRect(barRect, histBorderPaint)
+        }
+    }
+
     private fun drawHorizonIndicator(canvas: Canvas, w: Float, h: Float) {
         val cx = w / 2f
         val cy = h / 2f
         val lineLen = 32f * resources.displayMetrics.density
-        val roll = currentState.rollAngle
+        val roll = if (isAiEnabled && currentState.rollAngle != 0f) currentState.rollAngle else manualRollAngle
 
         val isLevel = kotlin.math.abs(roll) <= 1.5f
         val color = if (isLevel) {

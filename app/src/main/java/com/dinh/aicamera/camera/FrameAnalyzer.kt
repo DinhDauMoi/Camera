@@ -51,6 +51,14 @@ class FrameAnalyzer(
 
     var compositionEngine: com.dinh.aicamera.composition.CompositionEngine? = null
 
+    // Taste learning
+    var isTasteLearningEnabled: Boolean = true
+    var top3TasteRegions: Set<Int> = emptySet()
+
+    // Histogram realtime
+    var lastHistogram: IntArray = IntArray(24)
+    var onHistogramUpdated: ((IntArray) -> Unit)? = null
+
     private var aiEnabledTimestamp: Long = 0L
     private var lastSuggestionTime: Long = 0L
 
@@ -244,8 +252,24 @@ class FrameAnalyzer(
                     candidates.addAll(sceneDots)
                 }
 
+                // Taste Learning: nếu bật và chưa chọn dot nào -> +0.08 điểm cho candidate rơi vào top 3 vùng có counter cao nhất
+                val boostedCandidates = if (isTasteLearningEnabled && engine.getSelectedId() == null && top3TasteRegions.isNotEmpty()) {
+                    candidates.map { c ->
+                        val col = (c.x * 3f).toInt().coerceIn(0, 2)
+                        val row = (c.y * 3f).toInt().coerceIn(0, 2)
+                        val regionIdx = row * 3 + col
+                        if (top3TasteRegions.contains(regionIdx)) {
+                            c.copy(score = (c.score + 0.08f).coerceIn(0f, 1f))
+                        } else {
+                            c
+                        }
+                    }
+                } else {
+                    candidates
+                }
+
                 val filtered = com.dinh.aicamera.composition.CompositionEngine.filterAndNms(
-                    candidates,
+                    boostedCandidates,
                     minScore = 0.45f,
                     nmsDistThreshold = 0.12f,
                     maxResults = 4
@@ -422,12 +446,17 @@ class FrameAnalyzer(
         var count = 0
         var i = 0
         val remaining = buffer.remaining()
+        val currentHist = IntArray(24)
         while (i < remaining) {
             val byteVal = buffer.get(i).toInt() and 0xFF
             total += byteVal
             count++
+            val bin = (byteVal * 24 / 256).coerceIn(0, 23)
+            currentHist[bin]++
             i += step
         }
+        lastHistogram = currentHist
+        onHistogramUpdated?.invoke(currentHist)
         return if (count > 0) (total.toFloat() / count) else 128f
     }
 

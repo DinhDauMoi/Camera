@@ -51,6 +51,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.math.abs
+import com.dinh.aicamera.util.GoldenHourHelper
 
 class MainActivity : AppCompatActivity() {
 
@@ -113,6 +114,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val locationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            GoldenHourHelper.scheduleNextGoldenHour(this)
+            Toast.makeText(this, "Đã bật nhắc giờ vàng", Toast.LENGTH_SHORT).show()
+        } else {
+            GoldenHourHelper.scheduleNextGoldenHour(this)
+            Toast.makeText(this, "Đã bật nhắc giờ vàng (tọa độ mặc định)", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        // Post notifications permission callback
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -127,6 +146,10 @@ class MainActivity : AppCompatActivity() {
         setupSensors()
         setupGalleryTab()
         checkCameraPermission()
+
+        if (preferences.isGoldenHourEnabled) {
+            GoldenHourHelper.scheduleNextGoldenHour(this)
+        }
 
         contentResolver.registerContentObserver(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -229,6 +252,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         frameAnalyzer.compositionEngine = compositionEngine
+        frameAnalyzer.isTasteLearningEnabled = preferences.isTasteLearningEnabled
+        frameAnalyzer.top3TasteRegions = preferences.getTop3TasteRegions()
+        frameAnalyzer.onHistogramUpdated = { hist ->
+            if (binding.compositionOverlay.isHistogramEnabled) {
+                runOnUiThread {
+                    binding.compositionOverlay.histogram = hist
+                }
+            }
+        }
 
         // Observe engine.suggestions -> overlay.setSuggestions(...) (§6)
         lifecycleScope.launch {
@@ -245,6 +277,10 @@ class MainActivity : AppCompatActivity() {
                 binding.compositionOverlay.setLocked(false)
                 binding.compositionOverlay.isLegacyGuideVisible = false
                 isSuggestionLocked = false
+
+                // AI học gu: ghi lại vùng 3x3 khi user chọn dot
+                preferences.recordTasteDot(selected.x, selected.y)
+                frameAnalyzer.top3TasteRegions = preferences.getTop3TasteRegions()
 
                 // Tính targetRatio khi chọn chấm (§4)
                 val currentZoom = cameraManager.getZoomRatio()
@@ -278,7 +314,10 @@ class MainActivity : AppCompatActivity() {
         frameAnalyzer.isAiEnabled = preferences.isAiEnabled
         frameAnalyzer.onAiToggled(preferences.isAiEnabled)
         binding.compositionOverlay.isAiEnabled = preferences.isAiEnabled
-        binding.compositionOverlay.isGridEnabled = preferences.isGridEnabled
+        binding.compositionOverlay.gridMode = preferences.gridMode
+        binding.compositionOverlay.isHistogramEnabled = preferences.isHistogramEnabled
+        binding.compositionOverlay.isPoseGuideEnabled = preferences.isPoseGuideEnabled
+        binding.compositionOverlay.isLevelEnabled = preferences.isLevelEnabled
     }
 
     private fun setupSensors() {
@@ -286,6 +325,7 @@ class MainActivity : AppCompatActivity() {
             currentRoll = roll
             currentPitch = pitch
             isDeviceSteady = isSteady
+            binding.compositionOverlay.setLevelAngle(roll)
         }
     }
 
@@ -335,12 +375,49 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
         }
 
-        // 2. Toggle Lưới 1/3 riêng biệt
+        // 2. Toggle Lưới với vòng lặp 5 kiểu (Tắt -> 1/3 -> Golden -> Chéo -> Trung tâm -> Tắt)
         updateGridToggleUI()
         binding.btnGridToggle.setOnClickListener {
-            preferences.isGridEnabled = !preferences.isGridEnabled
-            binding.compositionOverlay.isGridEnabled = preferences.isGridEnabled
+            val nextMode = (preferences.gridMode + 1) % 5
+            preferences.gridMode = nextMode
             updateGridToggleUI()
+            val name = when (nextMode) {
+                1 -> "Lưới 1/3"
+                2 -> "Golden ratio"
+                3 -> "Đường chéo"
+                4 -> "Trung tâm"
+                else -> "Tắt lưới"
+            }
+            Toast.makeText(this, name, Toast.LENGTH_SHORT).show()
+        }
+
+        // Nút Tools (⋯) mở panel công cụ 5 tính năng
+        LiquidGlassHelper.setupGlass(binding.btnTools)
+        binding.btnTools.setOnClickListener {
+            val dialog = ToolsBottomSheetDialog().apply {
+                onHistogramToggled = { enabled ->
+                    binding.compositionOverlay.isHistogramEnabled = enabled
+                    if (!enabled) binding.compositionOverlay.histogram = null
+                }
+                onPoseGuideToggled = { enabled ->
+                    binding.compositionOverlay.isPoseGuideEnabled = enabled
+                }
+                onTasteLearningToggled = { enabled ->
+                    frameAnalyzer.isTasteLearningEnabled = enabled
+                }
+                onGoldenHourToggled = { enabled ->
+                    if (enabled) {
+                        checkAndEnableGoldenHour()
+                    } else {
+                        GoldenHourHelper.cancelGoldenHour(this@MainActivity)
+                        Toast.makeText(this@MainActivity, "Đã tắt nhắc giờ vàng", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                onLevelToggled = { enabled ->
+                    binding.compositionOverlay.isLevelEnabled = enabled
+                }
+            }
+            dialog.show(supportFragmentManager, "ToolsBottomSheetDialog")
         }
 
         // 3. Chụp ảnh (Luôn chụp ngay lập tức không delay)
@@ -423,11 +500,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateGridToggleUI() {
-        val isGridOn = preferences.isGridEnabled
-        if (isGridOn) {
+        val mode = preferences.gridMode
+        binding.compositionOverlay.gridMode = mode
+        if (mode != 0) {
             binding.btnGridToggle.setColorFilter(ContextCompat.getColor(this, R.color.accent_pink))
         } else {
             binding.btnGridToggle.setColorFilter(ContextCompat.getColor(this, R.color.white_50))
+        }
+    }
+
+    private fun checkAndEnableGoldenHour() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Cần quyền vị trí để tính giờ mặt trời", Toast.LENGTH_SHORT).show()
+            locationPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+        } else {
+            GoldenHourHelper.scheduleNextGoldenHour(this)
+            Toast.makeText(this, "Đã bật nhắc giờ vàng", Toast.LENGTH_SHORT).show()
         }
     }
 
