@@ -242,7 +242,7 @@ class MainActivity : AppCompatActivity() {
             if (selected != null) {
                 binding.compositionOverlay.setSelected(selected.id)
                 binding.compositionOverlay.setLocked(false)
-                binding.compositionOverlay.setLegacyGuideVisible(false)
+                binding.compositionOverlay.isLegacyGuideVisible = false
                 isSuggestionLocked = false
 
                 // Tính targetRatio khi chọn chấm (§4)
@@ -267,7 +267,7 @@ class MainActivity : AppCompatActivity() {
                 // Chạm lại chấm đang chọn -> Hủy chọn, về SUGGESTING (§2.5)
                 binding.compositionOverlay.setSelected(null)
                 binding.compositionOverlay.setLocked(false)
-                binding.compositionOverlay.setLegacyGuideVisible(true)
+                binding.compositionOverlay.isLegacyGuideVisible = true
                 isSuggestionLocked = false
                 binding.aiSuggestionBubble.visibility = View.GONE
             }
@@ -325,7 +325,7 @@ class MainActivity : AppCompatActivity() {
                 cameraManager.resetZoom()
                 compositionEngine.clearSuggestions()
                 binding.compositionOverlay.clearSuggestions()
-                binding.compositionOverlay.setLegacyGuideVisible(true)
+                binding.compositionOverlay.isLegacyGuideVisible = true
                 binding.aiSuggestionBubble.visibility = View.GONE
             }
 
@@ -509,7 +509,7 @@ class MainActivity : AppCompatActivity() {
                     compositionEngine.clearSelection()
                     binding.compositionOverlay.setSelected(null)
                     binding.compositionOverlay.setLocked(false)
-                    binding.compositionOverlay.setLegacyGuideVisible(true)
+                    binding.compositionOverlay.isLegacyGuideVisible = true
                     isSuggestionLocked = false
                     binding.aiSuggestionBubble.visibility = View.GONE
                     return true

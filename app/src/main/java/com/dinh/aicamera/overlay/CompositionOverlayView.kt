@@ -244,10 +244,6 @@ class CompositionOverlayView @JvmOverloads constructor(
             postInvalidateOnAnimation()
         }
 
-    fun setLegacyGuideVisible(visible: Boolean) {
-        isLegacyGuideVisible = visible
-    }
-
     fun clearSuggestions() {
         suggestions = emptyList()
         selectedSuggestionId = null
