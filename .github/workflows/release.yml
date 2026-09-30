@@ -54,11 +54,13 @@ jobs:
           name: Lievis Cam ${{ github.ref_name }}
           files: release-assets/LievisCam-${{ github.ref_name }}.apk
           body: |
-            - Đổi model nhận diện sang YOLOv12n: nhẹ (~10MB), phân tích nhanh hơn, chuẩn hơn trước
-            - Warmup GPU: hết khựng khi bật AI lần đầu
-            - Chữ đen trên pill hồng: tab, nút zoom, chip filter đã đọc rõ
-            - AI mặc định tắt mỗi lần mở app, cần thì bật tay
-            - Sửa tên hiển thị còn sót thành Lievis Cam
+            - Nút ⋯ mới: mở panel công cụ, gom các chức năng phụ cho gọn màn hình
+            - Nút lưới: bấm nhiều lần để đổi kiểu (1/3, golden ratio, đường chéo, trung tâm)
+            - Histogram realtime ở góc phải trên
+            - Pose guide: bóng người mẫu để canh dáng chụp chân dung
+            - AI học gu: nhớ vùng hay chọn, ưu tiên gợi ý vùng đó
+            - Nhắc giờ vàng: báo trước hoàng hôn 20 phút
+            - Thước cân bằng dùng được cả khi tắt AI
           generate_release_notes: false
           draft: false
           prerelease: false
