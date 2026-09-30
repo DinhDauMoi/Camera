@@ -536,14 +536,14 @@ class MainActivity : AppCompatActivity() {
             binding.cameraTabContainer.visibility = View.VISIBLE
             binding.galleryTabContainer.visibility = View.GONE
             binding.tabBtnCamera.setBackgroundResource(R.drawable.bg_glass_pill_active)
-            binding.tabBtnCamera.setTextColor(ContextCompat.getColor(this, R.color.black))
+            binding.tabBtnCamera.setTextColor(ContextCompat.getColor(this, R.color.accent_pink))
             binding.tabBtnGallery.background = null
             binding.tabBtnGallery.setTextColor(ContextCompat.getColor(this, R.color.white_70))
         } else {
             binding.cameraTabContainer.visibility = View.GONE
             binding.galleryTabContainer.visibility = View.VISIBLE
             binding.tabBtnGallery.setBackgroundResource(R.drawable.bg_glass_pill_active)
-            binding.tabBtnGallery.setTextColor(ContextCompat.getColor(this, R.color.black))
+            binding.tabBtnGallery.setTextColor(ContextCompat.getColor(this, R.color.accent_pink))
             binding.tabBtnCamera.background = null
             binding.tabBtnCamera.setTextColor(ContextCompat.getColor(this, R.color.white_70))
 

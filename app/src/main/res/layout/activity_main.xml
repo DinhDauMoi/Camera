@@ -468,7 +468,7 @@
             android:gravity="center"
             android:paddingHorizontal="20dp"
             android:text="@string/tab_camera"
-            android:textColor="@color/black"
+            android:textColor="@color/accent_pink"
             android:textSize="13sp"
             android:textStyle="bold" />
 
