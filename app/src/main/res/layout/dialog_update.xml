@@ -43,7 +43,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/ivUpdateIcon"
         app:layout_constraintTop_toBottomOf="@id/tvUpdateTitle"
-        tools:text="Phiên bản mới: v1.0.8" />
+        tools:text="Phiên bản mới: v1.0.9" />
 
     <ScrollView
         android:id="@+id/changelogScroll"

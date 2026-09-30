@@ -131,6 +131,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/btnCheckUpdateNow"
-        tools:text="Lievis Cam v1.0.8" />
+        tools:text="Lievis Cam v1.0.9" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
