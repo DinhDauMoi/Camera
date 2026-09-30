@@ -54,10 +54,10 @@ jobs:
           name: Lievis Cam ${{ github.ref_name }}
           files: release-assets/LievisCam-${{ github.ref_name }}.apk
           body: |
-            - Khôi phục tab Thư viện với bộ nhớ đệm mượt mà, tải ảnh nền và tối ưu thumbnail
-            - Nâng cấp giao diện Liquid Glass hiện đại, viền tán sắc ánh sáng và kính mờ
-            - Tối ưu hiển thị dialog và hiệu ứng nền
-            - Sửa lỗi tương thích và tối ưu độ ổn định
+            - Gợi ý bố cục đa chấm thông minh: phân tích và hiển thị nhiều điểm vàng tối ưu (người, vật thể, phong cảnh)
+            - Hướng dẫn tương tác chạm chọn: chạm chọn chấm để tự động căn chỉnh và zoom mượt mà theo khung hình
+            - Khắc phục xoay lưới bố cục: hiển thị chính xác vị trí gợi ý phong cảnh khi xoay dọc hoặc ngang
+            - Tối ưu luồng chụp: ẩn các chỉ dẫn cũ khi chọn chấm, loại bỏ xung đột auto-zoom và auto-capture
           generate_release_notes: false
           draft: false
           prerelease: false
