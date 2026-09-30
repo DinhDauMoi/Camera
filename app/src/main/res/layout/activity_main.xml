@@ -38,6 +38,30 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
+        <!-- Cột nút dọc cạnh trái (Neo vào cạnh trái preview, giữa theo chiều dọc) -->
+        <LinearLayout
+            android:id="@+id/leftSideButtons"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/previewView"
+            app:layout_constraintStart_toStartOf="@id/previewView"
+            app:layout_constraintTop_toTopOf="@id/previewView"
+            tools:visibility="visible">
+
+            <!-- Nút đổi dáng chụp (Chỉ hiện khi Pose guide đang bật) -->
+            <ImageButton
+                android:id="@+id/btnPoseToggle"
+                style="@style/Widget.LievisCam.GlassCircle"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:contentDescription="Đổi dáng chụp"
+                android:src="@drawable/ic_pose_guide"
+                app:tint="@color/white" />
+        </LinearLayout>
+
         <!-- TOP BAR: Floating Glass Pill bo tròn hoàn toàn, không full-width, căn giữa phía trên, các nút bấm cực nhạy -->
         <LinearLayout
             android:id="@+id/topToolbar"

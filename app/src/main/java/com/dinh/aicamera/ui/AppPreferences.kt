@@ -36,6 +36,10 @@ class AppPreferences(context: Context) {
         get() = prefs.getBoolean(KEY_POSE_GUIDE_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_POSE_GUIDE_ENABLED, value).apply()
 
+    var poseIndex: Int
+        get() = prefs.getInt(KEY_POSE_INDEX, 0)
+        set(value) = prefs.edit().putInt(KEY_POSE_INDEX, value).apply()
+
     var isTasteLearningEnabled: Boolean
         get() = prefs.getBoolean(KEY_TASTE_LEARNING_ENABLED, true) // Mặc định BẬT
         set(value) = prefs.edit().putBoolean(KEY_TASTE_LEARNING_ENABLED, value).apply()
@@ -117,6 +121,7 @@ class AppPreferences(context: Context) {
         private const val KEY_GRID_MODE = "key_grid_mode"
         private const val KEY_HISTOGRAM_ENABLED = "key_histogram_enabled"
         private const val KEY_POSE_GUIDE_ENABLED = "key_pose_guide_enabled"
+        private const val KEY_POSE_INDEX = "key_pose_index"
         private const val KEY_TASTE_LEARNING_ENABLED = "key_taste_learning_enabled"
         private const val KEY_GOLDEN_HOUR_ENABLED = "key_golden_hour_enabled"
         private const val KEY_LEVEL_ENABLED = "key_level_enabled"

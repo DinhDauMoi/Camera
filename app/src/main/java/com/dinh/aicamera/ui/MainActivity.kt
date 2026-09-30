@@ -41,6 +41,7 @@ import com.dinh.aicamera.composition.SubjectTracker
 import com.dinh.aicamera.databinding.ActivityMainBinding
 import com.dinh.aicamera.filter.AIFilterRecommender
 import com.dinh.aicamera.filter.FilterType
+import com.dinh.aicamera.overlay.PoseType
 import com.dinh.aicamera.ui.gallery.FullscreenPhotoDialog
 import com.dinh.aicamera.ui.gallery.GalleryGridAdapter
 import com.dinh.aicamera.ui.update.AppUpdateManager
@@ -317,6 +318,8 @@ class MainActivity : AppCompatActivity() {
         binding.compositionOverlay.gridMode = preferences.gridMode
         binding.compositionOverlay.isHistogramEnabled = preferences.isHistogramEnabled
         binding.compositionOverlay.isPoseGuideEnabled = preferences.isPoseGuideEnabled
+        binding.compositionOverlay.poseIndex = preferences.poseIndex
+        binding.leftSideButtons.visibility = if (preferences.isPoseGuideEnabled) View.VISIBLE else View.GONE
         binding.compositionOverlay.isLevelEnabled = preferences.isLevelEnabled
     }
 
@@ -391,6 +394,18 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, name, Toast.LENGTH_SHORT).show()
         }
 
+        // Nút đổi dáng chụp (Cạnh trái preview, chỉ hiện khi bật Pose guide)
+        LiquidGlassHelper.setupGlass(binding.btnPoseToggle)
+        binding.btnPoseToggle.setOnClickListener {
+            animateButtonClick(it)
+            val poses = PoseType.values()
+            val nextIndex = (preferences.poseIndex + 1) % poses.size
+            preferences.poseIndex = nextIndex
+            binding.compositionOverlay.poseIndex = nextIndex
+            val poseName = poses[nextIndex].displayName
+            Toast.makeText(this, "Dáng: $poseName", Toast.LENGTH_SHORT).show()
+        }
+
         // Nút Tools (⋯) mở panel công cụ 5 tính năng
         LiquidGlassHelper.setupGlass(binding.btnTools)
         binding.btnTools.setOnClickListener {
@@ -401,6 +416,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 onPoseGuideToggled = { enabled ->
                     binding.compositionOverlay.isPoseGuideEnabled = enabled
+                    binding.leftSideButtons.visibility = if (enabled) View.VISIBLE else View.GONE
                 }
                 onTasteLearningToggled = { enabled ->
                     frameAnalyzer.isTasteLearningEnabled = enabled

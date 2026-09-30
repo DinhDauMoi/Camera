@@ -72,6 +72,13 @@ class CompositionOverlayView @JvmOverloads constructor(
             postInvalidateOnAnimation()
         }
 
+    var poseIndex: Int = 0
+        set(value) {
+            val count = PoseType.values().size
+            field = if (count > 0) ((value % count) + count) % count else 0
+            postInvalidateOnAnimation()
+        }
+
     var isLevelEnabled: Boolean = false
         set(value) {
             field = value
@@ -511,36 +518,64 @@ class CompositionOverlayView @JvmOverloads constructor(
     }
 
     private fun drawPoseGuide(canvas: Canvas, w: Float, h: Float) {
+        val poses = PoseType.values()
+        if (poses.isEmpty()) return
+        val currentPose = poses[poseIndex.coerceIn(0, poses.size - 1)]
+        val joints = currentPose.joints
+
         val density = resources.displayMetrics.density
         val totalH = h * 0.70f
         val topY = h * 0.15f
-        val bottomY = topY + totalH
         val cx = w / 2f
 
-        // 1. Đầu: vòng tròn đường kính ~13% totalH
-        val headRadius = totalH * 0.065f
-        val headCenterY = topY + headRadius
-        canvas.drawCircle(cx, headCenterY, headRadius, poseGuidePaint)
+        // 1. Đầu: vòng tròn nét viền
+        val headX = cx + joints.headCenter.x * totalH
+        val headY = topY + joints.headCenter.y * totalH
+        val headR = joints.headRadius * totalH
+        canvas.drawCircle(headX, headY, headR, poseGuidePaint)
 
-        // 2. Thân: đường capsule từ cổ xuống hông
-        val neckY = headCenterY + headRadius + 4f * density
-        val hipY = topY + totalH * 0.48f
-        val shoulderWidth = totalH * 0.14f
-        val torsoRect = RectF(cx - shoulderWidth / 2f, neckY, cx + shoulderWidth / 2f, hipY)
-        val torsoRadius = 14f * density
+        // 2. Thân: capsule bo tròn từ cổ xuống hông
+        val neckX = cx + joints.torsoNeck.x * totalH
+        val neckY = topY + joints.torsoNeck.y * totalH
+        val hipX = cx + joints.torsoHip.x * totalH
+        val hipY = topY + joints.torsoHip.y * totalH
+        val torsoW = joints.torsoWidth * totalH
+        val torsoRadius = joints.torsoRadius * density
+
+        val midTorsoX = (neckX + hipX) / 2f
+        val midTorsoY = (neckY + hipY) / 2f
+        val dx = hipX - neckX
+        val dy = hipY - neckY
+        val torsoLen = kotlin.math.hypot(dx.toDouble(), dy.toDouble()).toFloat()
+        val angleDeg = Math.toDegrees(kotlin.math.atan2(dx.toDouble(), dy.toDouble())).toFloat()
+
+        canvas.save()
+        if (angleDeg != 0f) {
+            canvas.rotate(-angleDeg, midTorsoX, midTorsoY)
+        }
+        val torsoRect = RectF(
+            midTorsoX - torsoW / 2f,
+            midTorsoY - torsoLen / 2f,
+            midTorsoX + torsoW / 2f,
+            midTorsoY + torsoLen / 2f
+        )
         canvas.drawRoundRect(torsoRect, torsoRadius, torsoRadius, poseGuidePaint)
+        canvas.restore()
 
-        // 3. Tay: hai đường thẳng từ vai xuống gần hông
-        val armTopY = neckY + 8f * density
-        val armBottomY = hipY + 12f * density
-        val armSpread = shoulderWidth / 2f + 16f * density
-        canvas.drawLine(cx - shoulderWidth / 2f, armTopY, cx - armSpread, armBottomY, poseGuidePaint)
-        canvas.drawLine(cx + shoulderWidth / 2f, armTopY, cx + armSpread, armBottomY, poseGuidePaint)
-
-        // 4. Chân: hai đường thẳng từ hông xuống dưới đáy
-        val legSpacing = 16f * density
-        canvas.drawLine(cx - legSpacing, hipY, cx - legSpacing * 1.2f, bottomY, poseGuidePaint)
-        canvas.drawLine(cx + legSpacing, hipY, cx + legSpacing * 1.2f, bottomY, poseGuidePaint)
+        // 3. Các chi: tay và chân dạng chuỗi nét
+        val limbs = listOf(joints.leftArm, joints.rightArm, joints.leftLeg, joints.rightLeg)
+        for (limb in limbs) {
+            if (limb.size < 2) continue
+            for (i in 0 until limb.size - 1) {
+                val p1 = limb[i]
+                val p2 = limb[i + 1]
+                val x1 = cx + p1.x * totalH
+                val y1 = topY + p1.y * totalH
+                val x2 = cx + p2.x * totalH
+                val y2 = topY + p2.y * totalH
+                canvas.drawLine(x1, y1, x2, y2, poseGuidePaint)
+            }
+        }
     }
 
     private fun drawHistogram(canvas: Canvas, w: Float, h: Float) {
