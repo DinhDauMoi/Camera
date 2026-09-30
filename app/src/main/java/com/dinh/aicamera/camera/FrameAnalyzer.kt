@@ -49,6 +49,22 @@ class FrameAnalyzer(
     private var lastCandidateBox: RectF? = null
     private var lastIsFace: Boolean = false
 
+    var compositionEngine: com.dinh.aicamera.composition.CompositionEngine? = null
+
+    private var aiEnabledTimestamp: Long = 0L
+    private var lastSuggestionTime: Long = 0L
+
+    fun onAiToggled(enabled: Boolean) {
+        isAiEnabled = enabled
+        if (enabled) {
+            aiEnabledTimestamp = android.os.SystemClock.elapsedRealtime()
+            lastSuggestionTime = 0L
+        } else {
+            aiEnabledTimestamp = 0L
+            lastSuggestionTime = 0L
+        }
+    }
+
     @OptIn(ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
         val mediaImage = imageProxy.image
@@ -76,6 +92,22 @@ class FrameAnalyzer(
             return
         }
 
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (aiEnabledTimestamp == 0L) {
+            aiEnabledTimestamp = now
+        }
+
+        // Trạng thái SCANNING (~1.5s khi vừa bật AI)
+        val isScanning = (now - aiEnabledTimestamp) < 1500L
+        if (isScanning) {
+            lastCandidateBox = null
+            lastIsFace = false
+            onFrameAnalyzed(null, false, avgLuminance)
+            isProcessing.set(false)
+            imageProxy.close()
+            return
+        }
+
         // Nhịp chạy: 1 frame chạy AI, 1 frame bỏ qua (trả lại kết quả frame trước)
         val currentFrame = frameCount++
         if (currentFrame % 2L != 0L) {
@@ -92,7 +124,9 @@ class FrameAnalyzer(
         faceDetector.process(inputImage)
             .addOnSuccessListener { faces ->
                 if (faces.isNotEmpty()) {
-                    // Chọn mặt lớn nhất làm chủ thể chính
+                    val allFaceBoxes = faces.map { face ->
+                        mapFaceBoxToPreviewCoordinates(face.boundingBox, imageProxy.width, imageProxy.height, rotationDegrees) to 0.92f
+                    }
                     val primaryFace = faces.maxByOrNull { it.boundingBox.width() * it.boundingBox.height() }
                     val mappedFaceBox = primaryFace?.boundingBox?.let { box ->
                         mapFaceBoxToPreviewCoordinates(box, imageProxy.width, imageProxy.height, rotationDegrees)
@@ -101,34 +135,37 @@ class FrameAnalyzer(
                     lastCandidateBox = mappedFaceBox
                     lastIsFace = true
 
+                    handleSuggestionsAndTracking(allFaceBoxes, imageProxy, now)
+
                     onFrameAnalyzed(mappedFaceBox, true, avgLuminance)
                     isProcessing.set(false)
                     imageProxy.close()
                 } else {
-                    // Không có mặt người -> chạy YOLO11n tìm vật thể
-                    detectObjectsWithYolo(imageProxy, rotationDegrees, avgLuminance)
+                    detectObjectsWithYolo(imageProxy, rotationDegrees, avgLuminance, now)
                 }
             }
             .addOnFailureListener {
-                detectObjectsWithYolo(imageProxy, rotationDegrees, avgLuminance)
+                detectObjectsWithYolo(imageProxy, rotationDegrees, avgLuminance, now)
             }
     }
 
     private fun detectObjectsWithYolo(
         imageProxy: ImageProxy,
         rotationDegrees: Int,
-        avgLuminance: Float
+        avgLuminance: Float,
+        now: Long
     ) {
         try {
             val detections = yoloDetector.detect(imageProxy)
+            val isRotated = rotationDegrees == 90 || rotationDegrees == 270
+            val uprightW = if (isRotated) imageProxy.height else imageProxy.width
+            val uprightH = if (isRotated) imageProxy.width else imageProxy.height
+
             if (detections.isNotEmpty()) {
-                // Chọn box có diện tích lớn nhất (hoặc confidence cao nhất) làm candidate
+                val allObjBoxes = detections.map { det ->
+                    mapUprightBoxToPreviewCoordinates(det.box, uprightW, uprightH) to det.confidence
+                }
                 val primaryObj = detections.maxByOrNull { it.box.width() * it.box.height() }
-
-                val isRotated = rotationDegrees == 90 || rotationDegrees == 270
-                val uprightW = if (isRotated) imageProxy.height else imageProxy.width
-                val uprightH = if (isRotated) imageProxy.width else imageProxy.height
-
                 val mappedObjBox = primaryObj?.let {
                     mapUprightBoxToPreviewCoordinates(it.box, uprightW, uprightH)
                 }
@@ -136,10 +173,13 @@ class FrameAnalyzer(
                 lastCandidateBox = mappedObjBox
                 lastIsFace = false
 
+                handleSuggestionsAndTracking(allObjBoxes, imageProxy, now)
                 onFrameAnalyzed(mappedObjBox, false, avgLuminance)
             } else {
                 lastCandidateBox = null
                 lastIsFace = false
+
+                handleSuggestionsAndTracking(emptyList(), imageProxy, now)
                 onFrameAnalyzed(null, false, avgLuminance)
             }
         } catch (e: Throwable) {
@@ -149,6 +189,155 @@ class FrameAnalyzer(
         } finally {
             isProcessing.set(false)
             imageProxy.close()
+        }
+    }
+
+    private fun handleSuggestionsAndTracking(
+        allBoxes: List<Pair<RectF, Float>>,
+        imageProxy: ImageProxy,
+        now: Long
+    ) {
+        val engine = compositionEngine ?: return
+        val selectedId = engine.getSelectedId()
+
+        val viewW = previewViewWidth.toFloat()
+        val viewH = previewViewHeight.toFloat()
+        if (viewW <= 0f || viewH <= 0f) return
+
+        if (selectedId == null) {
+            // Chưa chọn chấm nào: refresh gợi ý mỗi 2s
+            if (now - lastSuggestionTime >= 2000L) {
+                lastSuggestionTime = now
+                val candidates = mutableListOf<com.dinh.aicamera.composition.Suggestion>()
+                var idCounter = 1
+
+                if (allBoxes.isNotEmpty()) {
+                    for ((box, conf) in allBoxes) {
+                        val cx = (box.centerX() / viewW).coerceIn(0f, 1f)
+                        val cy = (box.centerY() / viewH).coerceIn(0f, 1f)
+                        val bw = (box.width() / viewW).coerceIn(0.01f, 1f)
+                        val bh = (box.height() / viewH).coerceIn(0.01f, 1f)
+
+                        val score = com.dinh.aicamera.composition.CompositionEngine.calculateCandidateScore(
+                            cx, cy, bw, bh, conf
+                        )
+                        if (score >= 0.45f) {
+                            candidates.add(
+                                com.dinh.aicamera.composition.Suggestion(
+                                    id = idCounter++,
+                                    x = cx,
+                                    y = cy,
+                                    score = score,
+                                    boxW = bw,
+                                    boxH = bh,
+                                    isScene = false
+                                )
+                            )
+                        }
+                    }
+                }
+
+                // Nếu không có detection (phong cảnh): chia preview thành lưới 3x3
+                if (candidates.isEmpty()) {
+                    val sceneDots = evaluateLandscapeGrid(imageProxy)
+                    candidates.addAll(sceneDots)
+                }
+
+                val filtered = com.dinh.aicamera.composition.CompositionEngine.filterAndNms(
+                    candidates,
+                    minScore = 0.45f,
+                    nmsDistThreshold = 0.12f,
+                    maxResults = 4
+                )
+                engine.updateSuggestions(filtered)
+            }
+        } else {
+            // Đã chọn 1 chấm: bám theo vật thể nếu có detection
+            val selected = engine.getSelectedSuggestion()
+            if (selected != null && !selected.isScene && allBoxes.isNotEmpty()) {
+                val currentX = selected.x * viewW
+                val currentY = selected.y * viewH
+                val closest = allBoxes.minByOrNull { (box, _) ->
+                    kotlin.math.hypot(box.centerX() - currentX, box.centerY() - currentY)
+                }
+                if (closest != null) {
+                    val (box, _) = closest
+                    val dist = kotlin.math.hypot(box.centerX() - currentX, box.centerY() - currentY)
+                    if (dist < 0.35f * viewW) {
+                        val newX = (0.7f * selected.x + 0.3f * (box.centerX() / viewW)).coerceIn(0f, 1f)
+                        val newY = (0.7f * selected.y + 0.3f * (box.centerY() / viewH)).coerceIn(0f, 1f)
+                        engine.updateSelectedPosition(newX, newY)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun evaluateLandscapeGrid(imageProxy: ImageProxy): List<com.dinh.aicamera.composition.Suggestion> {
+        return try {
+            val yPlane = imageProxy.planes[0]
+            val buffer = yPlane.buffer
+            val rowStride = yPlane.rowStride
+            val width = imageProxy.width
+            val height = imageProxy.height
+
+            val cellW = width / 3
+            val cellH = height / 3
+            val candidates = mutableListOf<com.dinh.aicamera.composition.Suggestion>()
+
+            var idCounter = 101
+            for (row in 0 until 3) {
+                for (col in 0 until 3) {
+                    val startX = col * cellW
+                    val endX = (col + 1) * cellW
+                    val startY = row * cellH
+                    val endY = (row + 1) * cellH
+
+                    var sum = 0L
+                    var sumSq = 0L
+                    var count = 0
+                    val stepX = maxOf(4, cellW / 10)
+                    val stepY = maxOf(4, cellH / 10)
+
+                    for (y in startY until endY step stepY) {
+                        val rowOffset = y * rowStride
+                        for (x in startX until endX step stepX) {
+                            val index = rowOffset + x
+                            if (index < buffer.limit()) {
+                                val v = buffer.get(index).toInt() and 0xFF
+                                sum += v
+                                sumSq += (v * v).toLong()
+                                count++
+                            }
+                        }
+                    }
+
+                    if (count > 0) {
+                        val mean = sum.toDouble() / count
+                        val variance = (sumSq.toDouble() / count) - (mean * mean)
+                        val stdDev = kotlin.math.sqrt(maxOf(0.0, variance)).toFloat()
+                        val score = (0.45f + (stdDev / 50f) * 0.45f).coerceIn(0.45f, 0.90f)
+
+                        val normX = (col + 0.5f) / 3f
+                        val normY = (row + 0.5f) / 3f
+
+                        candidates.add(
+                            com.dinh.aicamera.composition.Suggestion(
+                                id = idCounter++,
+                                x = normX,
+                                y = normY,
+                                score = score,
+                                boxW = null,
+                                boxH = null,
+                                isScene = true
+                            )
+                        )
+                    }
+                }
+            }
+            candidates.sortedByDescending { it.score }.take(2)
+        } catch (_: Exception) {
+            emptyList()
         }
     }
 

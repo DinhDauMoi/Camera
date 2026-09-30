@@ -198,7 +198,38 @@ class CameraManager(
         }
     }
 
+    fun smoothZoomTo(targetRatio: Float) {
+        val minRatio = getMinZoomRatio()
+        val maxRatio = getMaxZoomRatio()
+        val clampedTarget = targetRatio.coerceIn(minRatio, maxRatio)
+
+        zoomAnimator?.cancel()
+        zoomAnimator = null
+
+        val startRatio = getZoomRatio()
+        if (kotlin.math.abs(clampedTarget - startRatio) < 0.01f) return
+
+        zoomAnimator = ValueAnimator.ofFloat(startRatio, clampedTarget).apply {
+            duration = 600L
+            interpolator = DecelerateInterpolator()
+            addUpdateListener { animator ->
+                val animatedVal = animator.animatedValue as Float
+                currentZoomRatio = animatedVal
+                try {
+                    camera?.cameraControl?.setZoomRatio(animatedVal)
+                } catch (_: Exception) {}
+            }
+            start()
+        }
+    }
+
+    fun cancelSmoothZoom() {
+        zoomAnimator?.cancel()
+        zoomAnimator = null
+    }
+
     fun resetZoom() {
+        cancelSmoothZoom()
         setZoomRatio(1.0f, smooth = false)
     }
 

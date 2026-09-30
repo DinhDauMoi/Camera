@@ -19,12 +19,25 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
+import android.os.SystemClock
+import android.view.MotionEvent
+import com.dinh.aicamera.composition.Suggestion
 
 class CompositionOverlayView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
+
+    // Multi-dot suggestion state
+    private var suggestions: List<Suggestion> = emptyList()
+    private var selectedSuggestionId: Int? = null
+    private var isSelectedLocked: Boolean = false
+    private var downSuggestionId: Int? = null
+    private var suggestionFadeAlpha: Float = 1.0f
+    private var fadeAnimator: ValueAnimator? = null
+
+    var onSuggestionTap: ((Int) -> Unit)? = null
 
     var isAiEnabled: Boolean = false
         set(value) {
@@ -153,6 +166,145 @@ class CompositionOverlayView @JvmOverloads constructor(
         strokeWidth = 2f * resources.displayMetrics.density
     }
 
+    private val suggestionGlassBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = ContextCompat.getColor(context, R.color.glass_surface_dark)
+    }
+
+    private val suggestionBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 1.5f * resources.displayMetrics.density
+        color = ContextCompat.getColor(context, R.color.white_70)
+    }
+
+    private val suggestionSelectedBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2.5f * resources.displayMetrics.density
+        color = ContextCompat.getColor(context, R.color.accent_gold)
+    }
+
+    private val suggestionSelectedGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 6f * resources.displayMetrics.density
+        color = ContextCompat.getColor(context, R.color.accent_gold_glow)
+    }
+
+    private val centerTargetRingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 1.8f * resources.displayMetrics.density
+        color = ContextCompat.getColor(context, R.color.white_70)
+    }
+
+    private val centerTargetLockedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 3f * resources.displayMetrics.density
+        color = ContextCompat.getColor(context, R.color.accent_gold)
+    }
+
+    private val chevronPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2.4f * resources.displayMetrics.density
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+        color = ContextCompat.getColor(context, R.color.accent_gold)
+    }
+
+    fun setSuggestions(list: List<Suggestion>) {
+        if (suggestions != list) {
+            suggestions = list
+            fadeAnimator?.cancel()
+            fadeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = 300L
+                interpolator = DecelerateInterpolator()
+                addUpdateListener {
+                    suggestionFadeAlpha = it.animatedValue as Float
+                    invalidate()
+                }
+                start()
+            }
+        } else {
+            postInvalidateOnAnimation()
+        }
+    }
+
+    fun setSelected(id: Int?) {
+        selectedSuggestionId = id
+        isSelectedLocked = false
+        postInvalidateOnAnimation()
+    }
+
+    fun setLocked(locked: Boolean) {
+        isSelectedLocked = locked
+        postInvalidateOnAnimation()
+    }
+
+    fun clearSuggestions() {
+        suggestions = emptyList()
+        selectedSuggestionId = null
+        isSelectedLocked = false
+        postInvalidateOnAnimation()
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (!isAiEnabled || suggestions.isEmpty()) {
+            return super.onTouchEvent(event)
+        }
+
+        val density = resources.displayMetrics.density
+        val hitRadius = 36f * density
+        val hitRadiusSq = hitRadius * hitRadius
+
+        val touchX = event.x
+        val touchY = event.y
+        val w = width.toFloat()
+        val h = height.toFloat()
+
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                val hit = suggestions.firstOrNull { s ->
+                    val dotX = s.x * w
+                    val dotY = s.y * h
+                    val dSq = (touchX - dotX) * (touchX - dotX) + (touchY - dotY) * (touchY - dotY)
+                    dSq <= hitRadiusSq
+                }
+                if (hit != null) {
+                    downSuggestionId = hit.id
+                    return true
+                }
+                downSuggestionId = null
+                return false
+            }
+            MotionEvent.ACTION_UP -> {
+                val candidateId = downSuggestionId
+                downSuggestionId = null
+                if (candidateId != null) {
+                    val hit = suggestions.firstOrNull { s ->
+                        val dotX = s.x * w
+                        val dotY = s.y * h
+                        val dSq = (touchX - dotX) * (touchX - dotX) + (touchY - dotY) * (touchY - dotY)
+                        dSq <= hitRadiusSq
+                    }
+                    if (hit != null && hit.id == candidateId) {
+                        onSuggestionTap?.invoke(hit.id)
+                        performClick()
+                        return true
+                    }
+                }
+                return false
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                downSuggestionId = null
+                return false
+            }
+        }
+        return super.onTouchEvent(event)
+    }
+
+    override fun performClick(): Boolean {
+        super.performClick()
+        return true
+    }
+
     fun updateState(state: CompositionState) {
         val oldScore = currentState.score
         currentState = state
@@ -192,6 +344,9 @@ class CompositionOverlayView @JvmOverloads constructor(
 
         // Nếu AI TẮT: dừng vẽ toàn bộ AR, trả về camera thường sạch sẽ
         if (!isAiEnabled) return
+
+        // Layer vẽ: dưới guide AI hiện có, trên preview (§5)
+        drawSuggestionDotsAndGuide(canvas, w, h)
 
         // Thước cân bằng chân trời
         drawHorizonIndicator(canvas, w, h)
@@ -523,5 +678,94 @@ class CompositionOverlayView @JvmOverloads constructor(
 
         val textY = top + (heightPill / 2f) + (guidanceTextPaint.textSize / 3f)
         canvas.drawText(text, w / 2f, textY, guidanceTextPaint)
+    }
+
+    private fun drawSuggestionDotsAndGuide(canvas: Canvas, w: Float, h: Float) {
+        if (suggestions.isEmpty()) return
+
+        val density = resources.displayMetrics.density
+        val baseRadius = 14f * density // 28dp diameter
+
+        val time = SystemClock.uptimeMillis()
+        val pulsePhase = ((time % 1600L).toFloat() / 1600L) * (2f * Math.PI.toFloat())
+        val pulseFactor = 0.85f + 0.15f * sin(pulsePhase)
+        val alphaMultiplier = suggestionFadeAlpha * pulseFactor
+
+        val selectedDot = suggestions.find { it.id == selectedSuggestionId }
+
+        // Khi SELECTED / LOCKED : vẽ vòng tròn mục tiêu ở tâm preview + mũi tên chevron từ vị trí chấm hướng về tâm
+        if (selectedDot != null) {
+            val cx = w / 2f
+            val cy = h / 2f
+            val centerTargetRadius = 32f * density
+
+            if (isSelectedLocked) {
+                // Khi LOCKED : vòng tâm chuyển gold + glow
+                canvas.drawCircle(cx, cy, centerTargetRadius, targetGlowPaint)
+                canvas.drawCircle(cx, cy, centerTargetRadius, centerTargetLockedPaint)
+            } else {
+                // Khi SELECTED : vẽ vòng tròn mục tiêu ở tâm preview
+                canvas.drawCircle(cx, cy, centerTargetRadius, centerTargetRingPaint)
+            }
+
+            // Mũi tên chevron từ vị trí chấm hướng về tâm
+            val dotX = selectedDot.x * w
+            val dotY = selectedDot.y * h
+            val dx = cx - dotX
+            val dy = cy - dotY
+            val dist = hypot(dx, dy)
+
+            if (dist > 24f * density) {
+                val angle = atan2(dy, dx)
+                val chevronLen = 12f * density
+                val wingAngle = 2.44f // ~140 degrees
+
+                val steps = floatArrayOf(0.45f, 0.70f)
+                for (step in steps) {
+                    val arrowX = dotX + dx * step
+                    val arrowY = dotY + dy * step
+
+                    val leftWingX = arrowX + chevronLen * cos(angle + wingAngle)
+                    val leftWingY = arrowY + chevronLen * sin(angle + wingAngle)
+                    val rightWingX = arrowX + chevronLen * cos(angle - wingAngle)
+                    val rightWingY = arrowY + chevronLen * sin(angle - wingAngle)
+
+                    val path = Path().apply {
+                        moveTo(leftWingX, leftWingY)
+                        lineTo(arrowX, arrowY)
+                        lineTo(rightWingX, rightWingY)
+                    }
+                    canvas.drawPath(path, chevronPaint)
+                }
+            }
+        }
+
+        // Vẽ các chấm gợi ý: hình tròn 28dp, nền Liquid Glass, viền trắng 1.5dp, pulse alpha nhẹ. Chấm được chọn: viền gold + glow
+        for (dot in suggestions) {
+            val dotX = dot.x * w
+            val dotY = dot.y * h
+            val isSelected = dot.id == selectedSuggestionId
+
+            if (isSelected) {
+                canvas.drawCircle(dotX, dotY, baseRadius, suggestionGlassBgPaint)
+                canvas.drawCircle(dotX, dotY, baseRadius + 3f * density, suggestionSelectedGlowPaint)
+                canvas.drawCircle(dotX, dotY, baseRadius, suggestionSelectedBorderPaint)
+                canvas.drawCircle(dotX, dotY, 4f * density, suggestionSelectedBorderPaint)
+            } else {
+                val origAlphaBg = suggestionGlassBgPaint.alpha
+                val origAlphaBorder = suggestionBorderPaint.alpha
+
+                suggestionGlassBgPaint.alpha = (origAlphaBg * alphaMultiplier).toInt().coerceIn(0, 255)
+                suggestionBorderPaint.alpha = (origAlphaBorder * alphaMultiplier).toInt().coerceIn(0, 255)
+
+                canvas.drawCircle(dotX, dotY, baseRadius, suggestionGlassBgPaint)
+                canvas.drawCircle(dotX, dotY, baseRadius, suggestionBorderPaint)
+
+                suggestionGlassBgPaint.alpha = origAlphaBg
+                suggestionBorderPaint.alpha = origAlphaBorder
+            }
+        }
+
+        postInvalidateOnAnimation()
     }
 }

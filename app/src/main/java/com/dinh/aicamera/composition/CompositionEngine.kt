@@ -9,7 +9,121 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+data class Suggestion(
+    val id: Int,
+    val x: Float, // Tọa độ chuẩn hóa 0..1 trên preview (X)
+    val y: Float, // Tọa độ chuẩn hóa 0..1 trên preview (Y)
+    val score: Float,
+    val boxW: Float?, // Kích thước bounding box chuẩn hóa (null nếu là gợi ý phong cảnh)
+    val boxH: Float?, // Kích thước bounding box chuẩn hóa (null nếu là gợi ý phong cảnh)
+    val isScene: Boolean
+)
+
 class CompositionEngine {
+
+    private val _suggestions = MutableStateFlow<List<Suggestion>>(emptyList())
+    val suggestions: StateFlow<List<Suggestion>> = _suggestions.asStateFlow()
+
+    private var selectedSuggestionId: Int? = null
+
+    fun selectSuggestion(id: Int): Suggestion? {
+        if (selectedSuggestionId == id) {
+            clearSelection()
+            return null
+        }
+        selectedSuggestionId = id
+        return _suggestions.value.find { it.id == id }
+    }
+
+    fun clearSelection() {
+        selectedSuggestionId = null
+    }
+
+    fun getSelectedId(): Int? = selectedSuggestionId
+
+    fun getSelectedSuggestion(): Suggestion? {
+        val id = selectedSuggestionId ?: return null
+        return _suggestions.value.find { it.id == id }
+    }
+
+    fun updateSuggestions(newList: List<Suggestion>) {
+        if (selectedSuggestionId == null) {
+            _suggestions.value = newList
+        }
+    }
+
+    fun updateSelectedPosition(newX: Float, newY: Float) {
+        val id = selectedSuggestionId ?: return
+        val current = _suggestions.value
+        val updated = current.map { s ->
+            if (s.id == id) s.copy(x = newX, y = newY) else s
+        }
+        _suggestions.value = updated
+    }
+
+    fun clearSuggestions() {
+        selectedSuggestionId = null
+        _suggestions.value = emptyList()
+    }
+
+    companion object {
+        fun calculateCandidateScore(
+            cx: Float,
+            cy: Float,
+            boxW: Float,
+            boxH: Float,
+            confidence: Float
+        ): Float {
+            val thirds = listOf(
+                1f / 3f to 1f / 3f,
+                2f / 3f to 1f / 3f,
+                1f / 3f to 2f / 3f,
+                2f / 3f to 2f / 3f
+            )
+            var minDist = Float.MAX_VALUE
+            for ((tx, ty) in thirds) {
+                val d = hypot(cx - tx, cy - ty)
+                if (d < minDist) minDist = d
+            }
+            val proximity = max(0f, 1f - (minDist / 0.45f))
+
+            val area = boxW * boxH
+            val sizeScore = when {
+                area < 0.02f -> max(0.2f, area / 0.02f)
+                area > 0.75f -> max(0.2f, 1f - (area - 0.75f) / 0.25f)
+                else -> 1.0f
+            }
+
+            val compositionScore = (0.7f * proximity + 0.3f * sizeScore).coerceIn(0.2f, 1.0f)
+            return (confidence * compositionScore).coerceIn(0f, 1f)
+        }
+
+        fun filterAndNms(
+            candidates: List<Suggestion>,
+            minScore: Float = 0.45f,
+            nmsDistThreshold: Float = 0.12f,
+            maxResults: Int = 4
+        ): List<Suggestion> {
+            val valid = candidates.filter { it.score >= minScore }
+                .sortedByDescending { it.score }
+
+            val result = mutableListOf<Suggestion>()
+            for (c in valid) {
+                val tooClose = result.any { accepted ->
+                    hypot(c.x - accepted.x, c.y - accepted.y) < nmsDistThreshold
+                }
+                if (!tooClose) {
+                    result.add(c)
+                    if (result.size >= maxResults) break
+                }
+            }
+            return result
+        }
+    }
 
     var isAutoCaptureEnabled: Boolean = true
     var isAutoZoomEnabled: Boolean = true

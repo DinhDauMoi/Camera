@@ -71,6 +71,7 @@ class MainActivity : AppCompatActivity() {
     private var activeFilter: FilterType = FilterType.NONE
     private var isCapturing: Boolean = false
     private var lastAiStage: AiStage = AiStage.SCANNING
+    private var isSuggestionLocked: Boolean = false
 
     // Zoom & Gestures State
     private var manualZoomOverride: Boolean = false
@@ -195,11 +196,83 @@ class MainActivity : AppCompatActivity() {
 
                 // AI Gợi ý Filter (hiện dưới khung hình, không đè lên AR overlay)
                 evaluateAIFilterSuggestion(avgLuminance)
+
+                // Kiểm tra trạng thái LOCKED khi chấm đã chọn nằm trong ~8% tâm khung hình (§2.4)
+                val selectedDot = compositionEngine.getSelectedSuggestion()
+                if (selectedDot != null) {
+                    val dotDist = kotlin.math.hypot(selectedDot.x - 0.5f, selectedDot.y - 0.5f)
+                    if (dotDist <= 0.08f) {
+                        if (!isSuggestionLocked) {
+                            isSuggestionLocked = true
+                            binding.compositionOverlay.setLocked(true)
+                            vibrateLight(30L)
+                            binding.tvAiSuggestion.text = "Bố cục đẹp!"
+                            binding.aiSuggestionBubble.visibility = View.VISIBLE
+                        }
+                    } else {
+                        if (isSuggestionLocked) {
+                            isSuggestionLocked = false
+                            binding.compositionOverlay.setLocked(false)
+                            binding.aiSuggestionBubble.visibility = View.GONE
+                        }
+                    }
+                } else {
+                    if (isSuggestionLocked) {
+                        isSuggestionLocked = false
+                        binding.compositionOverlay.setLocked(false)
+                        binding.aiSuggestionBubble.visibility = View.GONE
+                    }
+                }
+            }
+        }
+
+        frameAnalyzer.compositionEngine = compositionEngine
+
+        // Observe engine.suggestions -> overlay.setSuggestions(...) (§6)
+        lifecycleScope.launch {
+            compositionEngine.suggestions.collect { list ->
+                binding.compositionOverlay.setSuggestions(list)
+            }
+        }
+
+        // overlay.onSuggestionTap -> engine.selectSuggestion(id) -> tính target -> cameraManager.smoothZoomTo(target) -> overlay.setSelected(id) (§6)
+        binding.compositionOverlay.onSuggestionTap = { id ->
+            val selected = compositionEngine.selectSuggestion(id)
+            if (selected != null) {
+                binding.compositionOverlay.setSelected(selected.id)
+                binding.compositionOverlay.setLocked(false)
+                isSuggestionLocked = false
+
+                // Tính targetRatio khi chọn chấm (§4)
+                val currentZoom = cameraManager.getZoomRatio()
+                val minZoom = cameraManager.getMinZoomRatio()
+                val maxZoom = cameraManager.getMaxZoomRatio()
+
+                val targetRatio = if (!selected.isScene && selected.boxW != null && selected.boxH != null) {
+                    val maxBoxDim = maxOf(selected.boxW, selected.boxH)
+                    if (maxBoxDim > 0.001f) {
+                        currentZoom * (0.6f / maxBoxDim)
+                    } else {
+                        currentZoom
+                    }
+                } else {
+                    // Phong cảnh (isScene): targetRatio = min(currentZoom, 1.0f)
+                    minOf(currentZoom, 1.0f)
+                }.coerceIn(minZoom, maxZoom)
+
+                cameraManager.smoothZoomTo(targetRatio)
+            } else {
+                // Chạm lại chấm đang chọn -> Hủy chọn, về SUGGESTING (§2.5)
+                binding.compositionOverlay.setSelected(null)
+                binding.compositionOverlay.setLocked(false)
+                isSuggestionLocked = false
+                binding.aiSuggestionBubble.visibility = View.GONE
             }
         }
 
         // Khởi tạo trạng thái mặc định
         frameAnalyzer.isAiEnabled = preferences.isAiEnabled
+        frameAnalyzer.onAiToggled(preferences.isAiEnabled)
         binding.compositionOverlay.isAiEnabled = preferences.isAiEnabled
         binding.compositionOverlay.isGridEnabled = preferences.isGridEnabled
     }
@@ -228,14 +301,27 @@ class MainActivity : AppCompatActivity() {
         updateAiToggleUI()
         binding.btnAiToggle.setOnClickListener {
             preferences.isAiEnabled = !preferences.isAiEnabled
-            frameAnalyzer.isAiEnabled = preferences.isAiEnabled
+            frameAnalyzer.onAiToggled(preferences.isAiEnabled)
             binding.compositionOverlay.isAiEnabled = preferences.isAiEnabled
             subjectTracker?.reset()
             manualZoomOverride = false
+            isSuggestionLocked = false
 
-            if (!preferences.isAiEnabled) {
-                // Tắt AI -> reset zoom về 1.0x ngay
+            if (preferences.isAiEnabled) {
+                // Bật AI -> trạng thái SCANNING, hiện bubble "Đang quét..." (~1.5s) (§2.2)
+                binding.tvAiSuggestion.text = "Đang quét..."
+                binding.aiSuggestionBubble.visibility = View.VISIBLE
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (preferences.isAiEnabled && compositionEngine.getSelectedId() == null) {
+                        binding.aiSuggestionBubble.visibility = View.GONE
+                    }
+                }, 1500L)
+            } else {
+                // Tắt AI -> xóa hết chấm, về preview thường (§2.7)
+                cameraManager.cancelSmoothZoom()
                 cameraManager.resetZoom()
+                compositionEngine.clearSuggestions()
+                binding.compositionOverlay.clearSuggestions()
                 binding.aiSuggestionBubble.visibility = View.GONE
             }
 
@@ -400,6 +486,8 @@ class MainActivity : AppCompatActivity() {
     private fun setupGestureDetectors() {
         scaleGestureDetector = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(detector: ScaleGestureDetector): Boolean {
+                // Người dùng pinch-zoom tay bất cứ lúc nào -> hủy animation zoom tự động, giữ lựa chọn (§2.6)
+                cameraManager.cancelSmoothZoom()
                 manualZoomOverride = true
                 val currentRatio = cameraManager.getZoomRatio()
                 val minRatio = cameraManager.getMinZoomRatio()
@@ -412,6 +500,15 @@ class MainActivity : AppCompatActivity() {
 
         gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapUp(e: MotionEvent): Boolean {
+                // Chạm vùng trống -> hủy chọn, về SUGGESTING (§2.5)
+                if (compositionEngine.getSelectedId() != null) {
+                    compositionEngine.clearSelection()
+                    binding.compositionOverlay.setSelected(null)
+                    binding.compositionOverlay.setLocked(false)
+                    isSuggestionLocked = false
+                    binding.aiSuggestionBubble.visibility = View.GONE
+                    return true
+                }
                 if (!scaleGestureDetector.isInProgress) {
                     cameraManager.tapToFocus(e.x, e.y)
                 }
@@ -737,21 +834,21 @@ class MainActivity : AppCompatActivity() {
             .start()
     }
 
-    private fun vibrateLight() {
+    private fun vibrateLight(durationMs: Long = 75L) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
                 vibratorManager.defaultVibrator.vibrate(
-                    VibrationEffect.createOneShot(75, VibrationEffect.DEFAULT_AMPLITUDE)
+                    VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE)
                 )
             } else {
                 @Suppress("DEPRECATION")
                 val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator?.vibrate(VibrationEffect.createOneShot(75, VibrationEffect.DEFAULT_AMPLITUDE))
+                    vibrator?.vibrate(VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE))
                 } else {
                     @Suppress("DEPRECATION")
-                    vibrator?.vibrate(75)
+                    vibrator?.vibrate(durationMs)
                 }
             }
         } catch (e: Exception) {
