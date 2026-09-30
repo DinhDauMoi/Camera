@@ -410,7 +410,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateAiToggleUI() {
         val isEnabled = preferences.isAiEnabled
         if (isEnabled) {
-            binding.btnAiToggle.setColorFilter(ContextCompat.getColor(this, R.color.accent_gold))
+            binding.btnAiToggle.setColorFilter(ContextCompat.getColor(this, R.color.accent_pink))
             if (preferences.isAutoCaptureEnabled) {
                 binding.autoCaptureBadge.visibility = View.VISIBLE
             }
@@ -424,7 +424,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateGridToggleUI() {
         val isGridOn = preferences.isGridEnabled
         if (isGridOn) {
-            binding.btnGridToggle.setColorFilter(ContextCompat.getColor(this, R.color.accent_gold))
+            binding.btnGridToggle.setColorFilter(ContextCompat.getColor(this, R.color.accent_pink))
         } else {
             binding.btnGridToggle.setColorFilter(ContextCompat.getColor(this, R.color.white_50))
         }
@@ -466,7 +466,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnZoom6.visibility = if (max >= 6.0f) View.VISIBLE else View.GONE
 
         val activeBg = R.drawable.bg_glass_pill_active
-        val activeColor = ContextCompat.getColor(this, R.color.accent_gold)
+        val activeColor = ContextCompat.getColor(this, R.color.accent_pink)
         val inactiveColor = ContextCompat.getColor(this, R.color.white_70)
 
         val is05 = abs(current - 0.5f) < 0.08f
@@ -536,14 +536,14 @@ class MainActivity : AppCompatActivity() {
             binding.cameraTabContainer.visibility = View.VISIBLE
             binding.galleryTabContainer.visibility = View.GONE
             binding.tabBtnCamera.setBackgroundResource(R.drawable.bg_glass_pill_active)
-            binding.tabBtnCamera.setTextColor(ContextCompat.getColor(this, R.color.accent_gold))
+            binding.tabBtnCamera.setTextColor(ContextCompat.getColor(this, R.color.black))
             binding.tabBtnGallery.background = null
             binding.tabBtnGallery.setTextColor(ContextCompat.getColor(this, R.color.white_70))
         } else {
             binding.cameraTabContainer.visibility = View.GONE
             binding.galleryTabContainer.visibility = View.VISIBLE
             binding.tabBtnGallery.setBackgroundResource(R.drawable.bg_glass_pill_active)
-            binding.tabBtnGallery.setTextColor(ContextCompat.getColor(this, R.color.accent_gold))
+            binding.tabBtnGallery.setTextColor(ContextCompat.getColor(this, R.color.black))
             binding.tabBtnCamera.background = null
             binding.tabBtnCamera.setTextColor(ContextCompat.getColor(this, R.color.white_70))
 
@@ -729,7 +729,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateChipStyle(chip: TextView, isSelected: Boolean) {
         if (isSelected) {
             chip.setBackgroundResource(R.drawable.bg_glass_pill_active)
-            chip.setTextColor(ContextCompat.getColor(this, R.color.accent_gold))
+            chip.setTextColor(ContextCompat.getColor(this, R.color.accent_pink))
         } else {
             chip.setBackgroundResource(R.drawable.bg_glass_pill)
             chip.setTextColor(ContextCompat.getColor(this, R.color.white_90))

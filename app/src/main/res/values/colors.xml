@@ -19,9 +19,10 @@
     <color name="glass_stroke">#33FFFFFF</color>
     <color name="glass_stroke_bright">#80FFFFFF</color>
 
-    <!-- Single Accent Color: Golden Amber (Kiểu Doka Cam / Leica) -->
-    <color name="accent_gold">#FFB800</color>
-    <color name="accent_gold_glow">#40FFB800</color>
+    <!-- Accent Palette: Hồng phấn & Đen -->
+    <color name="accent_pink">#F8A9C4</color>
+    <color name="accent_pink_glow">#66F8A9C4</color>
+    <color name="accent_pink_dark">#E88CA8</color>
 
     <!-- Score & Guide Colors -->
     <color name="score_green">#00E676</color>
@@ -31,7 +32,7 @@
 
     <!-- Overlay & Grid -->
     <color name="grid_line">#38FFFFFF</color>
-    <color name="target_ring">#FFB800</color>
+    <color name="target_ring">@color/accent_pink</color>
     <color name="subject_box">#99FFFFFF</color>
-    <color name="subject_box_aligned">#FFB800</color>
+    <color name="subject_box_aligned">@color/accent_pink</color>
 </resources>

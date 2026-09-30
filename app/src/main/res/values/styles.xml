@@ -11,7 +11,7 @@
         <item name="android:background">@drawable/bg_glass_pill</item>
     </style>
 
-    <!-- Glass Pill Active / Selected (Ánh vàng gold & viền khúc xạ sáng) -->
+    <!-- Glass Pill Active / Selected (Ánh hồng phấn & viền khúc xạ sáng) -->
     <style name="Widget.LievisCam.GlassPill.Active" parent="Widget.LievisCam.Glass">
         <item name="android:background">@drawable/bg_glass_pill_active</item>
     </style>

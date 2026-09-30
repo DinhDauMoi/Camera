@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Viền kính active: gradient vàng gold khúc xạ sáng rực rỡ -->
+    <!-- Viền kính active: gradient hồng phấn khúc xạ sáng rực rỡ -->
     <item>
         <shape android:shape="rectangle">
             <corners android:radius="999dp" />
             <gradient
                 android:angle="135"
-                android:startColor="#FFFFD54F"
-                android:centerColor="#FFFFB800"
-                android:endColor="#80FFB800"
+                android:startColor="#FFFFC1D5"
+                android:centerColor="#FFF8A9C4"
+                android:endColor="#80F8A9C4"
                 android:type="linear" />
         </shape>
     </item>
-    <!-- Nền kính active: hổ phách gold glow + highlight phía trên -->
+    <!-- Nền kính active: hồng phấn glow + highlight phía trên -->
     <item
         android:top="1.5dp"
         android:left="1.5dp"
@@ -22,8 +22,8 @@
             <corners android:radius="999dp" />
             <gradient
                 android:angle="270"
-                android:startColor="#59FFB800"
-                android:centerColor="#33FFB800"
+                android:startColor="#59F8A9C4"
+                android:centerColor="#33F8A9C4"
                 android:endColor="#240A0D14"
                 android:type="linear" />
         </shape>

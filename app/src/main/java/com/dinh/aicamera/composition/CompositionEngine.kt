@@ -281,6 +281,11 @@ class CompositionEngine {
             val desiredScale = sqrt(0.24f / max(0.03f, areaRatio))
             targetZoom = desiredScale.coerceIn(1.0f, 3.0f)
             shouldZoom = true
+        } else if (isAutoZoomEnabled && isDeviceSteady) {
+            // MỚI: chủ thể cỡ trung bình (0.18–0.60) -> zoom in dần về ~28% khung hình
+            val desiredScale = sqrt(0.28f / max(0.03f, areaRatio))
+            targetZoom = desiredScale.coerceIn(1.0f, 3.0f)
+            shouldZoom = targetZoom > 1.05f
         }
 
         // 2. Chấm điểm bố cục (0 - 100)

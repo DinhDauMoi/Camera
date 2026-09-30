@@ -70,7 +70,7 @@
             android:id="@+id/switchAutoZoom"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:thumbTint="@color/accent_gold"
+            app:thumbTint="@color/accent_pink"
             app:trackTint="@color/white_20" />
     </LinearLayout>
 
@@ -101,7 +101,7 @@
             android:id="@+id/switchAutoUpdate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:thumbTint="@color/accent_gold"
+            app:thumbTint="@color/accent_pink"
             app:trackTint="@color/white_20" />
     </LinearLayout>
 
@@ -113,7 +113,7 @@
         android:layout_height="48dp"
         android:layout_marginTop="14dp"
         android:text="@string/setting_check_update_now"
-        android:textColor="@color/accent_gold"
+        android:textColor="@color/accent_pink"
         app:cornerRadius="999dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

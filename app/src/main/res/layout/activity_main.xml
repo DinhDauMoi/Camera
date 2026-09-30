@@ -155,7 +155,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
-                android:textColor="@color/accent_gold"
+                android:textColor="@color/accent_pink"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 tools:text="AI gợi ý: Filter Sáng (Khung hình tối)" />
@@ -219,7 +219,7 @@
                 android:gravity="center"
                 android:paddingHorizontal="10dp"
                 android:text="1x"
-                android:textColor="@color/accent_gold"
+                android:textColor="@color/accent_pink"
                 android:textSize="12sp"
                 android:textStyle="bold" />
 
@@ -260,7 +260,7 @@
                 android:minWidth="34dp"
                 android:paddingHorizontal="6dp"
                 android:text="1.0x"
-                android:textColor="@color/accent_gold"
+                android:textColor="@color/accent_pink"
                 android:textSize="12sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -397,7 +397,7 @@
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="14dp"
                 android:paddingVertical="6dp"
-                android:textColor="@color/accent_gold"
+                android:textColor="@color/accent_pink"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 tools:text="14 ảnh" />
@@ -420,7 +420,7 @@
             android:id="@+id/galleryLoadingProgress"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:indeterminateTint="@color/accent_gold"
+            android:indeterminateTint="@color/accent_pink"
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -468,7 +468,7 @@
             android:gravity="center"
             android:paddingHorizontal="20dp"
             android:text="@string/tab_camera"
-            android:textColor="@color/accent_gold"
+            android:textColor="@color/black"
             android:textSize="13sp"
             android:textStyle="bold" />
 
@@ -510,7 +510,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/accent_gold" />
+            app:tint="@color/accent_pink" />
 
         <TextView
             android:id="@+id/tvPermTitle"
@@ -546,7 +546,7 @@
             android:layout_marginTop="22dp"
             android:paddingHorizontal="28dp"
             android:text="@string/permission_grant_btn"
-            android:textColor="@color/accent_gold"
+            android:textColor="@color/accent_pink"
             android:textStyle="bold"
             app:cornerRadius="999dp"
             app:layout_constraintEnd_toEndOf="parent"

@@ -16,7 +16,7 @@
         android:src="@drawable/ic_sparkles"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:tint="@color/accent_gold" />
+        app:tint="@color/accent_pink" />
 
     <TextView
         android:id="@+id/tvUpdateTitle"
@@ -37,7 +37,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="14dp"
         android:layout_marginTop="2dp"
-        android:textColor="@color/accent_gold"
+        android:textColor="@color/accent_pink"
         android:textSize="13sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
@@ -62,7 +62,7 @@
             android:layout_height="wrap_content"
             android:autoLink="web"
             android:textColor="@color/white_90"
-            android:textColorLink="@color/accent_gold"
+            android:textColorLink="@color/accent_pink"
             android:textSize="13sp"
             tools:text="- Cải thiện độ mượt AI\n- Thêm tab Thư viện riêng\n- Sửa lỗi crash camera" />
     </ScrollView>
@@ -75,7 +75,7 @@
         android:layout_marginTop="16dp"
         android:max="100"
         android:progressBackgroundTint="@color/white_20"
-        android:progressTint="@color/accent_gold"
+        android:progressTint="@color/accent_pink"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -123,7 +123,7 @@
             android:layout_height="44dp"
             android:paddingHorizontal="18dp"
             android:text="@string/update_dialog_btn_update"
-            android:textColor="@color/accent_gold"
+            android:textColor="@color/accent_pink"
             android:textStyle="bold"
             app:cornerRadius="999dp" />
     </LinearLayout>

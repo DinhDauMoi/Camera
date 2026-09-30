@@ -77,13 +77,13 @@ class CompositionOverlayView @JvmOverloads constructor(
     }
 
     private val targetRingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = ContextCompat.getColor(context, R.color.accent_gold)
+        color = ContextCompat.getColor(context, R.color.accent_pink)
         strokeWidth = 2.5f * resources.displayMetrics.density
         style = Paint.Style.STROKE
     }
 
     private val targetGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = ContextCompat.getColor(context, R.color.accent_gold_glow)
+        color = ContextCompat.getColor(context, R.color.accent_pink_glow)
         strokeWidth = 6f * resources.displayMetrics.density
         style = Paint.Style.STROKE
     }
@@ -95,14 +95,14 @@ class CompositionOverlayView @JvmOverloads constructor(
     }
 
     private val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = ContextCompat.getColor(context, R.color.accent_gold)
+        color = ContextCompat.getColor(context, R.color.accent_pink)
         strokeWidth = 2.2f * resources.displayMetrics.density
         style = Paint.Style.STROKE
         pathEffect = DashPathEffect(floatArrayOf(12f, 8f), 0f)
     }
 
     private val arrowHeadPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = ContextCompat.getColor(context, R.color.accent_gold)
+        color = ContextCompat.getColor(context, R.color.accent_pink)
         style = Paint.Style.FILL
     }
 
@@ -161,7 +161,7 @@ class CompositionOverlayView @JvmOverloads constructor(
     }
 
     private val scanPulsePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = ContextCompat.getColor(context, R.color.accent_gold_glow)
+        color = ContextCompat.getColor(context, R.color.accent_pink_glow)
         style = Paint.Style.STROKE
         strokeWidth = 2f * resources.displayMetrics.density
     }
@@ -180,13 +180,13 @@ class CompositionOverlayView @JvmOverloads constructor(
     private val suggestionSelectedBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 2.5f * resources.displayMetrics.density
-        color = ContextCompat.getColor(context, R.color.accent_gold)
+        color = ContextCompat.getColor(context, R.color.accent_pink)
     }
 
     private val suggestionSelectedGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 6f * resources.displayMetrics.density
-        color = ContextCompat.getColor(context, R.color.accent_gold_glow)
+        color = ContextCompat.getColor(context, R.color.accent_pink_glow)
     }
 
     private val centerTargetRingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -198,7 +198,7 @@ class CompositionOverlayView @JvmOverloads constructor(
     private val centerTargetLockedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 3f * resources.displayMetrics.density
-        color = ContextCompat.getColor(context, R.color.accent_gold)
+        color = ContextCompat.getColor(context, R.color.accent_pink)
     }
 
     private val chevronPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -206,7 +206,7 @@ class CompositionOverlayView @JvmOverloads constructor(
         strokeWidth = 2.4f * resources.displayMetrics.density
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
-        color = ContextCompat.getColor(context, R.color.accent_gold)
+        color = ContextCompat.getColor(context, R.color.accent_pink)
     }
 
     fun setSuggestions(list: List<Suggestion>) {
@@ -578,7 +578,7 @@ class CompositionOverlayView @JvmOverloads constructor(
         path.lineTo(box.left, box.bottom - cornerLen)
 
         if (isLocked) {
-            subjectBoxPaint.color = ContextCompat.getColor(context, R.color.accent_gold)
+            subjectBoxPaint.color = ContextCompat.getColor(context, R.color.accent_pink)
             subjectBoxPaint.strokeWidth = 2.2f * resources.displayMetrics.density
         } else {
             subjectBoxPaint.color = ContextCompat.getColor(context, R.color.white_70)
@@ -639,7 +639,7 @@ class CompositionOverlayView @JvmOverloads constructor(
         val score = animatedScore.toInt()
         val color = when {
             score >= 85 -> ContextCompat.getColor(context, R.color.score_green)
-            score >= 65 -> ContextCompat.getColor(context, R.color.accent_gold)
+            score >= 65 -> ContextCompat.getColor(context, R.color.accent_pink)
             score >= 40 -> ContextCompat.getColor(context, R.color.score_yellow)
             else -> ContextCompat.getColor(context, R.color.score_red)
         }
@@ -709,7 +709,7 @@ class CompositionOverlayView @JvmOverloads constructor(
             val centerTargetRadius = 32f * density
 
             if (isSelectedLocked) {
-                // Khi LOCKED : vòng tâm chuyển gold + glow
+                // Khi LOCKED : vòng tâm chuyển pink + glow
                 canvas.drawCircle(cx, cy, centerTargetRadius, targetGlowPaint)
                 canvas.drawCircle(cx, cy, centerTargetRadius, centerTargetLockedPaint)
             } else {
@@ -749,7 +749,7 @@ class CompositionOverlayView @JvmOverloads constructor(
             }
         }
 
-        // Vẽ các chấm gợi ý: hình tròn 28dp, nền Liquid Glass, viền trắng 1.5dp, pulse alpha nhẹ. Chấm được chọn: viền gold + glow
+        // Vẽ các chấm gợi ý: hình tròn 28dp, nền Liquid Glass, viền trắng 1.5dp, pulse alpha nhẹ. Chấm được chọn: viền pink + glow
         for (dot in suggestions) {
             val dotX = dot.x * w
             val dotY = dot.y * h
