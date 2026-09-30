@@ -305,10 +305,12 @@ class CompositionEngine {
         val totalScore = min(100, max(0, rawTotal))
 
         // 3. Thông điệp gợi ý bước 3
+        val a = abs(rollAngle) % 90f
+        val levelErr = min(a, 90f - a)
         val guidance = when {
             totalScore >= 85 -> "Bố cục hoàn hảo! Giữ yên để chụp"
             isTooLarge -> "Lùi máy ra xa một chút"
-            abs(rollAngle) > 2.5f -> "Giữ máy thẳng"
+            levelErr > 2.5f -> "Giữ máy thẳng"
             touchesEdge -> "Chủ thể sát viền, dịch máy ra giữa"
             else -> "Căn chỉnh thêm một chút..."
         }
@@ -359,12 +361,13 @@ class CompositionEngine {
     }
 
     private fun calculateBalanceScore(rollAngle: Float): Float {
-        val absRoll = abs(rollAngle)
+        val a = abs(rollAngle) % 90f
+        val levelErr = min(a, 90f - a)
         return when {
-            absRoll <= 1.2f -> 35f
-            absRoll <= 3.0f -> 28f
-            absRoll <= 6.0f -> 18f
-            absRoll <= 10.0f -> 8f
+            levelErr <= 1.2f -> 35f
+            levelErr <= 3.0f -> 28f
+            levelErr <= 6.0f -> 18f
+            levelErr <= 10.0f -> 8f
             else -> 0f
         }
     }
@@ -376,7 +379,9 @@ class CompositionEngine {
         screenWidth: Float,
         screenHeight: Float
     ): String {
-        if (abs(rollAngle) > 3.0f) {
+        val a = abs(rollAngle) % 90f
+        val levelErr = min(a, 90f - a)
+        if (levelErr > 3.0f) {
             return "Giữ máy thẳng"
         }
 

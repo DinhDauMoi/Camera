@@ -4,7 +4,9 @@
     style="@style/Widget.LievisCam.GlassDialog"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="24dp">
+    android:paddingTop="20dp"
+    android:paddingBottom="28dp"
+    android:paddingHorizontal="16dp">
 
     <!-- Top Handle Bar -->
     <View
@@ -23,6 +25,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
+        android:layout_marginStart="4dp"
         android:text="Công cụ"
         android:textColor="@color/white"
         android:textSize="20sp"
@@ -42,160 +45,242 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@id/tvToolsTitle" />
 
-    <!-- 1. Histogram -->
-    <LinearLayout
-        android:id="@+id/rowHistogram"
-        style="@style/Widget.LievisCam.GlassPill"
+    <!-- 5 Tools Horizontal Row -->
+    <HorizontalScrollView
+        android:id="@+id/scrollTools"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="10dp"
+        android:scrollbars="none"
+        android:overScrollMode="never"
+        android:fillViewport="true"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvToolsTitle">
 
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Histogram realtime"
-            android:textColor="@color/white"
-            android:textSize="14sp" />
-
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/switchHistogram"
+        <LinearLayout
+            android:id="@+id/layoutToolsRow"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:thumbTint="@color/accent_pink"
-            app:trackTint="@color/white_20" />
-    </LinearLayout>
+            android:gravity="center"
+            android:orientation="horizontal">
 
-    <!-- 2. Pose guide -->
-    <LinearLayout
-        android:id="@+id/rowPoseGuide"
-        style="@style/Widget.LievisCam.GlassPill"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="10dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/rowHistogram">
+            <!-- 1. Histogram realtime -->
+            <LinearLayout
+                android:id="@+id/itemToolHistogram"
+                android:layout_width="68dp"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
 
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Khung mẫu dáng (Pose guide)"
-            android:textColor="@color/white"
-            android:textSize="14sp" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnToolHistogram"
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    android:padding="0dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    app:elevation="0dp"
+                    app:strokeWidth="0dp"
+                    app:cornerRadius="999dp"
+                    android:checkable="true"
+                    app:iconSize="26dp"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="@color/btn_tool_bg_selector"
+                    app:iconTint="@color/btn_tool_icon_selector"
+                    app:icon="@drawable/ic_histogram" />
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/switchPoseGuide"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:thumbTint="@color/accent_pink"
-            app:trackTint="@color/white_20" />
-    </LinearLayout>
+                <TextView
+                    android:id="@+id/tvToolHistogram"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:textAlignment="center"
+                    android:maxLines="2"
+                    android:textSize="11sp"
+                    android:textColor="@color/white_70"
+                    android:text="Histogram\nrealtime" />
+            </LinearLayout>
 
-    <!-- 3. AI học gu -->
-    <LinearLayout
-        android:id="@+id/rowTasteLearning"
-        style="@style/Widget.LievisCam.GlassPill"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="10dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/rowPoseGuide">
+            <!-- 2. Pose guide -->
+            <LinearLayout
+                android:id="@+id/itemToolPoseGuide"
+                android:layout_width="68dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
 
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="AI học gu bố cục"
-            android:textColor="@color/white"
-            android:textSize="14sp" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnToolPoseGuide"
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    android:padding="0dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    app:elevation="0dp"
+                    app:strokeWidth="0dp"
+                    app:cornerRadius="999dp"
+                    android:checkable="true"
+                    app:iconSize="26dp"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="@color/btn_tool_bg_selector"
+                    app:iconTint="@color/btn_tool_icon_selector"
+                    app:icon="@drawable/ic_pose_guide" />
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/switchTasteLearning"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:thumbTint="@color/accent_pink"
-            app:trackTint="@color/white_20" />
-    </LinearLayout>
+                <TextView
+                    android:id="@+id/tvToolPoseGuide"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:textAlignment="center"
+                    android:maxLines="2"
+                    android:textSize="11sp"
+                    android:textColor="@color/white_70"
+                    android:text="Pose\nguide" />
+            </LinearLayout>
 
-    <!-- 4. Nhắc giờ vàng -->
-    <LinearLayout
-        android:id="@+id/rowGoldenHour"
-        style="@style/Widget.LievisCam.GlassPill"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="10dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/rowTasteLearning">
+            <!-- 3. AI học gu -->
+            <LinearLayout
+                android:id="@+id/itemToolTasteLearning"
+                android:layout_width="68dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
 
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Nhắc nhở giờ vàng"
-            android:textColor="@color/white"
-            android:textSize="14sp" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnToolTasteLearning"
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    android:padding="0dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    app:elevation="0dp"
+                    app:strokeWidth="0dp"
+                    app:cornerRadius="999dp"
+                    android:checkable="true"
+                    app:iconSize="26dp"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="@color/btn_tool_bg_selector"
+                    app:iconTint="@color/btn_tool_icon_selector"
+                    app:icon="@drawable/ic_sparkles" />
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/switchGoldenHour"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:thumbTint="@color/accent_pink"
-            app:trackTint="@color/white_20" />
-    </LinearLayout>
+                <TextView
+                    android:id="@+id/tvToolTasteLearning"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:textAlignment="center"
+                    android:maxLines="2"
+                    android:textSize="11sp"
+                    android:textColor="@color/white_70"
+                    android:text="AI học\ngu" />
+            </LinearLayout>
 
-    <!-- 5. Thước cân bằng -->
-    <LinearLayout
-        android:id="@+id/rowLevel"
-        style="@style/Widget.LievisCam.GlassPill"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="10dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/rowGoldenHour">
+            <!-- 4. Nhắc giờ vàng -->
+            <LinearLayout
+                android:id="@+id/itemToolGoldenHour"
+                android:layout_width="68dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
 
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Thước cân bằng chân trời"
-            android:textColor="@color/white"
-            android:textSize="14sp" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnToolGoldenHour"
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    android:padding="0dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    app:elevation="0dp"
+                    app:strokeWidth="0dp"
+                    app:cornerRadius="999dp"
+                    android:checkable="true"
+                    app:iconSize="26dp"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="@color/btn_tool_bg_selector"
+                    app:iconTint="@color/btn_tool_icon_selector"
+                    app:icon="@drawable/ic_golden_hour" />
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/switchLevel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:thumbTint="@color/accent_pink"
-            app:trackTint="@color/white_20" />
-    </LinearLayout>
+                <TextView
+                    android:id="@+id/tvToolGoldenHour"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:textAlignment="center"
+                    android:maxLines="2"
+                    android:textSize="11sp"
+                    android:textColor="@color/white_70"
+                    android:text="Nhắc\ngiờ vàng" />
+            </LinearLayout>
+
+            <!-- 5. Thước cân bằng -->
+            <LinearLayout
+                android:id="@+id/itemToolLevel"
+                android:layout_width="68dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnToolLevel"
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    android:padding="0dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    app:elevation="0dp"
+                    app:strokeWidth="0dp"
+                    app:cornerRadius="999dp"
+                    android:checkable="true"
+                    app:iconSize="26dp"
+                    app:iconGravity="textStart"
+                    app:backgroundTint="@color/btn_tool_bg_selector"
+                    app:iconTint="@color/btn_tool_icon_selector"
+                    app:icon="@drawable/ic_level" />
+
+                <TextView
+                    android:id="@+id/tvToolLevel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:textAlignment="center"
+                    android:maxLines="2"
+                    android:textSize="11sp"
+                    android:textColor="@color/white_70"
+                    android:text="Thước\ncân bằng" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </HorizontalScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

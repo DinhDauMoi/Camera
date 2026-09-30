@@ -560,7 +560,7 @@
             android:layout_marginTop="22dp"
             android:paddingHorizontal="28dp"
             android:text="@string/permission_grant_btn"
-            android:textColor="@color/accent_pink"
+            android:textColor="@color/black"
             android:textStyle="bold"
             app:cornerRadius="999dp"
             app:layout_constraintEnd_toEndOf="parent"

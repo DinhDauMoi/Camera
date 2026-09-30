@@ -14,6 +14,7 @@
     <!-- Glass Pill Active / Selected (Ánh hồng phấn & viền khúc xạ sáng) -->
     <style name="Widget.LievisCam.GlassPill.Active" parent="Widget.LievisCam.Glass">
         <item name="android:background">@drawable/bg_glass_pill_active</item>
+        <item name="android:textColor">@color/black</item>
     </style>
 
     <!-- Glass Card (24dp bo tròn - thẻ nội dung, dialog card, item grid) -->

@@ -551,7 +551,7 @@ class CompositionOverlayView @JvmOverloads constructor(
         val cardW = 100f * density
         val cardH = 48f * density
         val marginR = 14f * density
-        val marginT = 76f * density
+        val marginT = 128f * density
 
         val left = w - marginR - cardW
         val top = marginT
@@ -593,7 +593,9 @@ class CompositionOverlayView @JvmOverloads constructor(
         val lineLen = 32f * resources.displayMetrics.density
         val roll = if (isAiEnabled && currentState.rollAngle != 0f) currentState.rollAngle else manualRollAngle
 
-        val isLevel = kotlin.math.abs(roll) <= 1.5f
+        val a = kotlin.math.abs(roll) % 90f
+        val levelErr = kotlin.math.min(a, 90f - a)
+        val isLevel = levelErr <= 1.5f
         val color = if (isLevel) {
             ContextCompat.getColor(context, R.color.score_green)
         } else {
