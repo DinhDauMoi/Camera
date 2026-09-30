@@ -35,10 +35,6 @@ class UpdateDialogFragment : DialogFragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
     ): View {
         dialog?.window?.apply {
             requestFeature(Window.FEATURE_NO_TITLE)
