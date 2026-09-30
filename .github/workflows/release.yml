@@ -54,10 +54,9 @@ jobs:
           name: Lievis Cam ${{ github.ref_name }}
           files: release-assets/LievisCam-${{ github.ref_name }}.apk
           body: |
-            - Tối ưu auto-zoom liên tục: lấp "vùng chết" cho chủ thể cỡ trung bình (18% - 60% khung hình) tự động phóng to mượt mà
-            - Giao diện Liquid Glass Hồng Phấn & Đen: diện mạo sang trọng với tone accent hồng phấn kết hợp nền đen huyền bí
-            - Độ tương phản chữ tab sắc nét: chuyển chữ tab active sang màu hồng phấn cho trải nghiệm đọc rõ ràng, nổi bật
-            - Tinh chỉnh đồng bộ: cập nhật toàn diện màu sắc cho vòng ngắm, mũi tên dẫn hướng, nút điều khiển và hộp thoại
+            - Chữ đen trên pill hồng: tab Máy ảnh/Thư viện, nút zoom 0.5x/1x/3x/6x và chip filter khi active đã đọc rõ, không còn bị chìm
+            - AI mặc định tắt mỗi lần mở app, cần thì bật tay
+            - Nâng cấp model nhận diện đồ vật từ YOLO11n lên YOLO11s: chuẩn hơn, APK nặng hơn khoảng 27MB
           generate_release_notes: false
           draft: false
           prerelease: false
