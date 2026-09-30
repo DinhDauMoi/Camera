@@ -54,11 +54,10 @@ jobs:
           name: Lievis Cam ${{ github.ref_name }}
           files: release-assets/LievisCam-${{ github.ref_name }}.apk
           body: |
-            - Preset zoom 0.5x, 1x, 3x, 6x và pinch-to-zoom 2 ngón
-            - Chuyển zoom mượt mà, ưu tiên zoom thủ công hơn AI
-            - Chống rung/giật hình: liên tục lấy nét, deadband auto-zoom, tap-to-focus
-            - Bật/tắt lưới 1/3 độc lập với AI
-            - Bỏ tab Thư viện cho giao diện gọn gàng, xem nhanh ảnh vừa chụp
+            - Khôi phục tab Thư viện với bộ nhớ đệm mượt mà, tải ảnh nền và tối ưu thumbnail
+            - Nâng cấp giao diện Liquid Glass hiện đại, viền tán sắc ánh sáng và kính mờ
+            - Tối ưu hiển thị dialog và hiệu ứng nền
+            - Sửa lỗi tương thích và tối ưu độ ổn định
           generate_release_notes: false
           draft: false
           prerelease: false
