@@ -238,10 +238,21 @@ class CompositionOverlayView @JvmOverloads constructor(
         postInvalidateOnAnimation()
     }
 
+    var isLegacyGuideVisible: Boolean = true
+        set(value) {
+            field = value
+            postInvalidateOnAnimation()
+        }
+
+    fun setLegacyGuideVisible(visible: Boolean) {
+        isLegacyGuideVisible = visible
+    }
+
     fun clearSuggestions() {
         suggestions = emptyList()
         selectedSuggestionId = null
         isSelectedLocked = false
+        isLegacyGuideVisible = true
         postInvalidateOnAnimation()
     }
 
@@ -351,28 +362,30 @@ class CompositionOverlayView @JvmOverloads constructor(
         // Thước cân bằng chân trời
         drawHorizonIndicator(canvas, w, h)
 
-        // Phân nhánh vẽ theo 3 Bước rõ ràng:
-        when (currentState.stage) {
-            AiStage.SCANNING -> {
-                // Bước 1: Quét khung hình nhẹ nhàng (radar pulse), chưa hiện gợi ý dồn dập
-                morphRect.setEmpty()
-                drawScanningEffect(canvas, w, h)
-                drawGuidancePill(canvas, w, "Đang quét khung hình...")
-            }
+        // Phân nhánh vẽ theo 3 Bước rõ ràng (chỉ hiện khi chưa chọn chấm hoặc legacy guide được bật)
+        if (isLegacyGuideVisible && selectedSuggestionId == null) {
+            when (currentState.stage) {
+                AiStage.SCANNING -> {
+                    // Bước 1: Quét khung hình nhẹ nhàng (radar pulse), chưa hiện gợi ý dồn dập
+                    morphRect.setEmpty()
+                    drawScanningEffect(canvas, w, h)
+                    drawGuidancePill(canvas, w, "Đang quét khung hình...")
+                }
 
-            AiStage.GUIDING -> {
-                // Bước 2: Vòng tròn đích vàng xuất hiện nhỏ, nở to dần theo khoảng cách khi lia máy về phía vòng
-                drawTargetGoldenRingOrMorph(canvas, w, h)
-                drawSubjectReticle(canvas, isLocked = false)
-                drawDirectionalArrow(canvas)
-                drawGuidancePill(canvas, w, currentState.guidanceText)
-            }
+                AiStage.GUIDING -> {
+                    // Bước 2: Vòng tròn đích vàng xuất hiện nhỏ, nở to dần theo khoảng cách khi lia máy về phía vòng
+                    drawTargetGoldenRingOrMorph(canvas, w, h)
+                    drawSubjectReticle(canvas, isLocked = false)
+                    drawDirectionalArrow(canvas)
+                    drawGuidancePill(canvas, w, currentState.guidanceText)
+                }
 
-            AiStage.ALIGNED -> {
-                // Bước 3: Đã vào vùng đích -> vòng morph thành khung chữ nhật bo tròn ôm quanh subjectBounds
-                drawTargetGoldenRingOrMorph(canvas, w, h)
-                drawScoreRing(canvas, w)
-                drawGuidancePill(canvas, w, currentState.guidanceText)
+                AiStage.ALIGNED -> {
+                    // Bước 3: Đã vào vùng đích -> vòng morph thành khung chữ nhật bo tròn ôm quanh subjectBounds
+                    drawTargetGoldenRingOrMorph(canvas, w, h)
+                    drawScoreRing(canvas, w)
+                    drawGuidancePill(canvas, w, currentState.guidanceText)
+                }
             }
         }
     }

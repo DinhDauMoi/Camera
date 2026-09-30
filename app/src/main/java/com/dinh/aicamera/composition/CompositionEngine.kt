@@ -150,6 +150,7 @@ class CompositionEngine {
         rollAngle: Float,
         pitchAngle: Float,
         isDeviceSteady: Boolean,
+        suppressAutoCapture: Boolean = false,
         onAutoCaptureTrigger: () -> Unit
     ): CompositionState {
         if (screenWidth <= 0f || screenHeight <= 0f) {
@@ -311,7 +312,7 @@ class CompositionEngine {
         var autoCaptureReady = false
         var autoProgress = 0f
 
-        if (totalScore >= 85) {
+        if (totalScore >= 85 && !suppressAutoCapture && selectedSuggestionId == null) {
             val now = SystemClock.elapsedRealtime()
             if (highQualityStartTime == 0L) {
                 highQualityStartTime = now

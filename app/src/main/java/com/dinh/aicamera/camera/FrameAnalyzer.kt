@@ -135,7 +135,7 @@ class FrameAnalyzer(
                     lastCandidateBox = mappedFaceBox
                     lastIsFace = true
 
-                    handleSuggestionsAndTracking(allFaceBoxes, imageProxy, now)
+                    handleSuggestionsAndTracking(allFaceBoxes, imageProxy, rotationDegrees, now)
 
                     onFrameAnalyzed(mappedFaceBox, true, avgLuminance)
                     isProcessing.set(false)
@@ -173,13 +173,13 @@ class FrameAnalyzer(
                 lastCandidateBox = mappedObjBox
                 lastIsFace = false
 
-                handleSuggestionsAndTracking(allObjBoxes, imageProxy, now)
+                handleSuggestionsAndTracking(allObjBoxes, imageProxy, rotationDegrees, now)
                 onFrameAnalyzed(mappedObjBox, false, avgLuminance)
             } else {
                 lastCandidateBox = null
                 lastIsFace = false
 
-                handleSuggestionsAndTracking(emptyList(), imageProxy, now)
+                handleSuggestionsAndTracking(emptyList(), imageProxy, rotationDegrees, now)
                 onFrameAnalyzed(null, false, avgLuminance)
             }
         } catch (e: Throwable) {
@@ -195,6 +195,7 @@ class FrameAnalyzer(
     private fun handleSuggestionsAndTracking(
         allBoxes: List<Pair<RectF, Float>>,
         imageProxy: ImageProxy,
+        rotationDegrees: Int,
         now: Long
     ) {
         val engine = compositionEngine ?: return
@@ -239,7 +240,7 @@ class FrameAnalyzer(
 
                 // Nếu không có detection (phong cảnh): chia preview thành lưới 3x3
                 if (candidates.isEmpty()) {
-                    val sceneDots = evaluateLandscapeGrid(imageProxy)
+                    val sceneDots = evaluateLandscapeGrid(imageProxy, rotationDegrees)
                     candidates.addAll(sceneDots)
                 }
 
@@ -273,7 +274,10 @@ class FrameAnalyzer(
         }
     }
 
-    private fun evaluateLandscapeGrid(imageProxy: ImageProxy): List<com.dinh.aicamera.composition.Suggestion> {
+    private fun evaluateLandscapeGrid(
+        imageProxy: ImageProxy,
+        rotationDegrees: Int
+    ): List<com.dinh.aicamera.composition.Suggestion> {
         return try {
             val yPlane = imageProxy.planes[0]
             val buffer = yPlane.buffer
@@ -318,8 +322,15 @@ class FrameAnalyzer(
                         val stdDev = kotlin.math.sqrt(maxOf(0.0, variance)).toFloat()
                         val score = (0.45f + (stdDev / 50f) * 0.45f).coerceIn(0.45f, 0.90f)
 
-                        val normX = (col + 0.5f) / 3f
-                        val normY = (row + 0.5f) / 3f
+                        // Map tọa độ ô lưới từ sensor space sang preview space bằng đúng rotation + fill-center crop
+                        val mappedRect = mapFaceBoxToPreviewCoordinates(
+                            Rect(startX, startY, endX, endY),
+                            imageWidth = width,
+                            imageHeight = height,
+                            rotationDegrees = rotationDegrees
+                        )
+                        val normX = (mappedRect.centerX() / previewViewWidth).coerceIn(0f, 1f)
+                        val normY = (mappedRect.centerY() / previewViewHeight).coerceIn(0f, 1f)
 
                         candidates.add(
                             com.dinh.aicamera.composition.Suggestion(

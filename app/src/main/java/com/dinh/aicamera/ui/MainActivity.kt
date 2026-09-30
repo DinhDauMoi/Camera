@@ -168,8 +168,9 @@ class MainActivity : AppCompatActivity() {
                     rollAngle = currentRoll,
                     pitchAngle = currentPitch,
                     isDeviceSteady = isDeviceSteady,
+                    suppressAutoCapture = (compositionEngine.getSelectedId() != null),
                     onAutoCaptureTrigger = {
-                        if (preferences.isAiEnabled) {
+                        if (preferences.isAiEnabled && compositionEngine.getSelectedId() == null) {
                             triggerShutterCapture(isAuto = true)
                         }
                     }
@@ -186,8 +187,8 @@ class MainActivity : AppCompatActivity() {
                 // Cập nhật AR overlay (3 Bước: SCANNING -> GUIDING -> ALIGNED)
                 binding.compositionOverlay.updateState(state)
 
-                // BƯỚC 3: TỰ ĐỘNG ZOOM khi đã vào vùng đích (deadband > 0.02, không gọi khi AI tắt, stage SCANNING hoặc manual zoom override)
-                if (preferences.isAiEnabled && state.stage != AiStage.SCANNING && state.stage == AiStage.ALIGNED && state.shouldZoom && !manualZoomOverride) {
+                // BƯỚC 3: TỰ ĐỘNG ZOOM khi đã vào vùng đích (deadband > 0.02, không gọi khi AI tắt, stage SCANNING, đang chọn chấm hoặc manual zoom override)
+                if (preferences.isAiEnabled && compositionEngine.getSelectedId() == null && state.stage != AiStage.SCANNING && state.stage == AiStage.ALIGNED && state.shouldZoom && !manualZoomOverride) {
                     val currentRatio = cameraManager.getZoomRatio()
                     if (abs(state.targetZoomRatio - currentRatio) > 0.02f) {
                         cameraManager.setZoomRatio(state.targetZoomRatio, smooth = true)
@@ -241,6 +242,7 @@ class MainActivity : AppCompatActivity() {
             if (selected != null) {
                 binding.compositionOverlay.setSelected(selected.id)
                 binding.compositionOverlay.setLocked(false)
+                binding.compositionOverlay.setLegacyGuideVisible(false)
                 isSuggestionLocked = false
 
                 // Tính targetRatio khi chọn chấm (§4)
@@ -265,6 +267,7 @@ class MainActivity : AppCompatActivity() {
                 // Chạm lại chấm đang chọn -> Hủy chọn, về SUGGESTING (§2.5)
                 binding.compositionOverlay.setSelected(null)
                 binding.compositionOverlay.setLocked(false)
+                binding.compositionOverlay.setLegacyGuideVisible(true)
                 isSuggestionLocked = false
                 binding.aiSuggestionBubble.visibility = View.GONE
             }
@@ -322,6 +325,7 @@ class MainActivity : AppCompatActivity() {
                 cameraManager.resetZoom()
                 compositionEngine.clearSuggestions()
                 binding.compositionOverlay.clearSuggestions()
+                binding.compositionOverlay.setLegacyGuideVisible(true)
                 binding.aiSuggestionBubble.visibility = View.GONE
             }
 
@@ -505,6 +509,7 @@ class MainActivity : AppCompatActivity() {
                     compositionEngine.clearSelection()
                     binding.compositionOverlay.setSelected(null)
                     binding.compositionOverlay.setLocked(false)
+                    binding.compositionOverlay.setLegacyGuideVisible(true)
                     isSuggestionLocked = false
                     binding.aiSuggestionBubble.visibility = View.GONE
                     return true
