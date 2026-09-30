@@ -54,9 +54,11 @@ jobs:
           name: Lievis Cam ${{ github.ref_name }}
           files: release-assets/LievisCam-${{ github.ref_name }}.apk
           body: |
-            - Chữ đen trên pill hồng: tab Máy ảnh/Thư viện, nút zoom 0.5x/1x/3x/6x và chip filter khi active đã đọc rõ, không còn bị chìm
+            - Đổi model nhận diện sang YOLOv12n: nhẹ (~10MB), phân tích nhanh hơn, chuẩn hơn trước
+            - Warmup GPU: hết khựng khi bật AI lần đầu
+            - Chữ đen trên pill hồng: tab, nút zoom, chip filter đã đọc rõ
             - AI mặc định tắt mỗi lần mở app, cần thì bật tay
-            - Nâng cấp model nhận diện đồ vật từ YOLO11n lên YOLO11s: chuẩn hơn, APK nặng hơn khoảng 27MB
+            - Sửa tên hiển thị còn sót thành Lievis Cam
           generate_release_notes: false
           draft: false
           prerelease: false
