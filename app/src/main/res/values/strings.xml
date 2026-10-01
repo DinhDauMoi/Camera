@@ -25,6 +25,14 @@
     <string name="filter_warm">Ấm</string>
     <string name="filter_cool">Lạnh</string>
     <string name="filter_film">Film</string>
+    <string name="filter_custom">Tùy chỉnh</string>
+    <string name="custom_filter_title">Filter Tùy chỉnh</string>
+    <string name="custom_filter_reset">Đặt lại</string>
+    <string name="custom_filter_done">Xong</string>
+    <string name="custom_filter_tone">TÔNG</string>
+    <string name="custom_filter_warmth">ẤM</string>
+    <string name="custom_filter_vivid">RỰC RỠ</string>
+    <string name="custom_filter_quick_btn">Tùy chỉnh filter</string>
 
     <!-- Tự động chụp & Flash & AI Toggle -->
     <string name="ai_mode_on">AI Hướng dẫn: BẬT</string>

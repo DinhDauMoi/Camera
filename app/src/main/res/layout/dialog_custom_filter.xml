@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Widget.LievisCam.GlassDialog"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="16dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="24dp">
+
+    <!-- Top Handle Bar -->
+    <View
+        android:id="@+id/handleBar"
+        style="@style/Widget.LievisCam.GlassPill"
+        android:layout_width="48dp"
+        android:layout_height="4dp"
+        android:backgroundTint="@color/white_50"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Header: Title + Reset Button + Done Button -->
+    <TextView
+        android:id="@+id/tvCustomFilterTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:layout_marginStart="4dp"
+        android:text="@string/custom_filter_title"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toStartOf="@id/btnResetCustomFilter"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/handleBar" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnResetCustomFilter"
+        style="@style/Widget.LievisCam.GlassPill"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:layout_marginEnd="8dp"
+        android:paddingHorizontal="12dp"
+        android:text="@string/custom_filter_reset"
+        android:textColor="@color/white_90"
+        android:textSize="13sp"
+        app:strokeColor="@color/glass_stroke"
+        app:strokeWidth="1dp"
+        app:layout_constraintBottom_toBottomOf="@id/tvCustomFilterTitle"
+        app:layout_constraintEnd_toStartOf="@id/btnDoneCustomFilter"
+        app:layout_constraintTop_toTopOf="@id/tvCustomFilterTitle" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnDoneCustomFilter"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:backgroundTint="@color/accent_pink"
+        android:paddingHorizontal="16dp"
+        android:text="@string/custom_filter_done"
+        android:textColor="@color/black"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        app:cornerRadius="999dp"
+        app:elevation="0dp"
+        app:layout_constraintBottom_toBottomOf="@id/tvCustomFilterTitle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/tvCustomFilterTitle" />
+
+    <!-- Preview Container (Live Preview with generated sample bitmap) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardPreview"
+        android:layout_width="0dp"
+        android:layout_height="120dp"
+        android:layout_marginTop="16dp"
+        app:cardBackgroundColor="@color/black"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="0dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvCustomFilterTitle">
+
+        <ImageView
+            android:id="@+id/ivCustomFilterPreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="Ảnh xem trước filter tùy chỉnh"
+            android:scaleType="centerCrop" />
+
+        <!-- Subtitle overlay indicator -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:layout_margin="8dp"
+            android:background="@drawable/bg_glass_pill"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp"
+            android:text="Xem trước trực tiếp"
+            android:textColor="@color/white_90"
+            android:textSize="10sp" />
+    </androidx.cardview.widget.CardView>
+
+    <!-- Main Controls Container: 2D Grid + 3 Sliders -->
+    <LinearLayout
+        android:id="@+id/layoutControls"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/cardPreview">
+
+        <!-- 2D Color Grid (Warm <-> Cool, Intensity) -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <com.dinh.aicamera.ui.ColorGridView
+                android:id="@+id/colorGridView"
+                android:layout_width="128dp"
+                android:layout_height="128dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Cam ↔ Xanh"
+                android:textColor="@color/white_50"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- 3 Sliders: TONE, WARMTH, VIVID -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <!-- 1. TÔNG (Tone: 0-100, default 50) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/custom_filter_tone"
+                    android:textColor="@color/white_90"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvToneValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/accent_pink"
+                    android:textSize="12sp"
+                    tools:text="0" />
+            </LinearLayout>
+
+            <SeekBar
+                android:id="@+id/sbTone"
+                android:layout_width="match_parent"
+                android:layout_height="28dp"
+                android:max="100"
+                android:progress="50"
+                android:progressBackgroundTint="@color/white_20"
+                android:progressTint="@color/accent_pink"
+                android:splitTrack="false"
+                android:thumbTint="@color/accent_pink" />
+
+            <!-- 2. ẤM (Warmth: 0-100, default 50) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/custom_filter_warmth"
+                    android:textColor="@color/white_90"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvWarmthValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/accent_pink"
+                    android:textSize="12sp"
+                    tools:text="0" />
+            </LinearLayout>
+
+            <SeekBar
+                android:id="@+id/sbWarmth"
+                android:layout_width="match_parent"
+                android:layout_height="28dp"
+                android:max="100"
+                android:progress="50"
+                android:progressBackgroundTint="@color/white_20"
+                android:progressTint="@color/accent_pink"
+                android:splitTrack="false"
+                android:thumbTint="@color/accent_pink" />
+
+            <!-- 3. RỰC RỠ (Vivid: 0-100, default 50) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/custom_filter_vivid"
+                    android:textColor="@color/white_90"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvVividValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/accent_pink"
+                    android:textSize="12sp"
+                    tools:text="0" />
+            </LinearLayout>
+
+            <SeekBar
+                android:id="@+id/sbVivid"
+                android:layout_width="match_parent"
+                android:layout_height="28dp"
+                android:max="100"
+                android:progress="50"
+                android:progressBackgroundTint="@color/white_20"
+                android:progressTint="@color/accent_pink"
+                android:splitTrack="false"
+                android:thumbTint="@color/accent_pink" />
+        </LinearLayout>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

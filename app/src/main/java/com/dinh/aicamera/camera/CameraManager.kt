@@ -31,6 +31,7 @@ import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.LifecycleOwner
 import com.dinh.aicamera.filter.ColorMatrixFilter
 import com.dinh.aicamera.filter.FilterType
+import com.dinh.aicamera.ui.AppPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -357,7 +358,19 @@ class CameraManager(
             }
 
             if (filter != FilterType.NONE) {
-                val filtered = ColorMatrixFilter.applyFilterToBitmap(bitmap, filter)
+                val matrix = if (filter == FilterType.CUSTOM) {
+                    val prefs = AppPreferences(context)
+                    ColorMatrixFilter.getCustomMatrix(
+                        tone = prefs.customFilterTone,
+                        warmth = prefs.customFilterWarmth,
+                        vivid = prefs.customFilterVivid,
+                        gridX = prefs.customFilterGridX,
+                        gridY = prefs.customFilterGridY
+                    )
+                } else {
+                    ColorMatrixFilter.getColorMatrix(filter)
+                }
+                val filtered = ColorMatrixFilter.applyFilterWithMatrix(bitmap, matrix)
                 bitmap.recycle()
                 bitmap = filtered
             }

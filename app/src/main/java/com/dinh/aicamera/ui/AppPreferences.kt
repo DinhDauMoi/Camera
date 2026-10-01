@@ -68,6 +68,26 @@ class AppPreferences(context: Context) {
         get() = prefs.getString(KEY_IGNORED_UPDATE_VERSION, "") ?: ""
         set(value) = prefs.edit().putString(KEY_IGNORED_UPDATE_VERSION, value).apply()
 
+    var customFilterTone: Int
+        get() = prefs.getInt(KEY_CUSTOM_FILTER_TONE, 50)
+        set(value) = prefs.edit().putInt(KEY_CUSTOM_FILTER_TONE, value).apply()
+
+    var customFilterWarmth: Int
+        get() = prefs.getInt(KEY_CUSTOM_FILTER_WARMTH, 50)
+        set(value) = prefs.edit().putInt(KEY_CUSTOM_FILTER_WARMTH, value).apply()
+
+    var customFilterVivid: Int
+        get() = prefs.getInt(KEY_CUSTOM_FILTER_VIVID, 50)
+        set(value) = prefs.edit().putInt(KEY_CUSTOM_FILTER_VIVID, value).apply()
+
+    var customFilterGridX: Float
+        get() = prefs.getFloat(KEY_CUSTOM_FILTER_GRID_X, 0.5f)
+        set(value) = prefs.edit().putFloat(KEY_CUSTOM_FILTER_GRID_X, value).apply()
+
+    var customFilterGridY: Float
+        get() = prefs.getFloat(KEY_CUSTOM_FILTER_GRID_Y, 0.5f)
+        set(value) = prefs.edit().putFloat(KEY_CUSTOM_FILTER_GRID_Y, value).apply()
+
     /**
      * Lấy danh sách 9 counter cho vùng 3x3 (index 0..8)
      */
@@ -130,5 +150,10 @@ class AppPreferences(context: Context) {
         private const val KEY_AUTO_ZOOM = "key_auto_zoom"
         private const val KEY_AUTO_CHECK_UPDATE = "key_auto_check_update"
         private const val KEY_IGNORED_UPDATE_VERSION = "key_ignored_update_version"
+        private const val KEY_CUSTOM_FILTER_TONE = "key_custom_filter_tone"
+        private const val KEY_CUSTOM_FILTER_WARMTH = "key_custom_filter_warmth"
+        private const val KEY_CUSTOM_FILTER_VIVID = "key_custom_filter_vivid"
+        private const val KEY_CUSTOM_FILTER_GRID_X = "key_custom_filter_grid_x"
+        private const val KEY_CUSTOM_FILTER_GRID_Y = "key_custom_filter_grid_y"
     }
 }

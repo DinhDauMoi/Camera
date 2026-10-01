@@ -319,7 +319,7 @@ class MainActivity : AppCompatActivity() {
         binding.compositionOverlay.isHistogramEnabled = preferences.isHistogramEnabled
         binding.compositionOverlay.isPoseGuideEnabled = preferences.isPoseGuideEnabled
         binding.compositionOverlay.poseIndex = preferences.poseIndex
-        binding.leftSideButtons.visibility = if (preferences.isPoseGuideEnabled) View.VISIBLE else View.GONE
+        updateLeftSideButtonsVisibility()
         binding.compositionOverlay.isLevelEnabled = preferences.isLevelEnabled
     }
 
@@ -406,6 +406,13 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Dáng: $poseName", Toast.LENGTH_SHORT).show()
         }
 
+        // Nút mở nhanh bảng chỉnh Filter Tùy chỉnh (Cạnh trái preview)
+        LiquidGlassHelper.setupGlass(binding.btnCustomFilter)
+        binding.btnCustomFilter.setOnClickListener {
+            animateButtonClick(it)
+            showCustomFilterDialog()
+        }
+
         // Nút Tools (⋯) mở panel công cụ 5 tính năng
         LiquidGlassHelper.setupGlass(binding.btnTools)
         binding.btnTools.setOnClickListener {
@@ -416,7 +423,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 onPoseGuideToggled = { enabled ->
                     binding.compositionOverlay.isPoseGuideEnabled = enabled
-                    binding.leftSideButtons.visibility = if (enabled) View.VISIBLE else View.GONE
+                    updateLeftSideButtonsVisibility()
                 }
                 onTasteLearningToggled = { enabled ->
                     frameAnalyzer.isTasteLearningEnabled = enabled
@@ -818,12 +825,16 @@ class MainActivity : AppCompatActivity() {
 
             chip.setOnClickListener {
                 selectFilter(filter)
-                val filterName = getString(filter.titleRes)
-                Toast.makeText(
-                    this,
-                    "Đã chọn filter: $filterName (áp dụng cho ảnh khi chụp)",
-                    Toast.LENGTH_SHORT
-                ).show()
+                if (filter == FilterType.CUSTOM) {
+                    showCustomFilterDialog()
+                } else {
+                    val filterName = getString(filter.titleRes)
+                    Toast.makeText(
+                        this,
+                        "Đã chọn filter: $filterName (áp dụng cho ảnh khi chụp)",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
 
             binding.filterChipContainer.addView(chip)
@@ -837,6 +848,24 @@ class MainActivity : AppCompatActivity() {
             val f = FilterType.values()[i]
             updateChipStyle(child, f == activeFilter)
         }
+        updateLeftSideButtonsVisibility()
+    }
+
+    private fun showCustomFilterDialog() {
+        val existing = supportFragmentManager.findFragmentByTag(CustomFilterBottomSheetDialog.TAG)
+        if (existing == null) {
+            val dialog = CustomFilterBottomSheetDialog.newInstance()
+            dialog.show(supportFragmentManager, CustomFilterBottomSheetDialog.TAG)
+        }
+    }
+
+    private fun updateLeftSideButtonsVisibility() {
+        val showPose = preferences.isPoseGuideEnabled
+        val showCustom = activeFilter == FilterType.CUSTOM
+
+        binding.btnPoseToggle.visibility = if (showPose) View.VISIBLE else View.GONE
+        binding.btnCustomFilter.visibility = if (showCustom) View.VISIBLE else View.GONE
+        binding.leftSideButtons.visibility = if (showPose || showCustom) View.VISIBLE else View.GONE
     }
 
     private fun updateChipStyle(chip: TextView, isSelected: Boolean) {
