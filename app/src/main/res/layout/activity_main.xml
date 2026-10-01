@@ -88,16 +88,29 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
-            <!-- Nút Bật/Tắt AI (Icon đổi trạng thái rõ ràng) -->
+            <!-- Nút AI Gợi ý điểm đẹp (Mode DOTS) -->
             <ImageButton
-                android:id="@+id/btnAiToggle"
+                android:id="@+id/btnAiDots"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/ai_mode_off"
+                android:contentDescription="@string/ai_mode_dots"
                 android:padding="9dp"
                 android:scaleType="centerInside"
                 android:src="@drawable/ic_sparkles"
+                app:tint="@color/white_50" />
+
+            <!-- Nút AI Tự động zoom (Mode ZOOM) -->
+            <ImageButton
+                android:id="@+id/btnAiZoom"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/ai_mode_zoom"
+                android:padding="9dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_ai_zoom"
                 app:tint="@color/white_50" />
 
             <!-- Nút Bật/Tắt Lưới 1/3 riêng biệt -->

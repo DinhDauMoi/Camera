@@ -34,6 +34,7 @@ import coil.transform.CircleCropTransformation
 import com.dinh.aicamera.R
 import com.dinh.aicamera.camera.CameraManager
 import com.dinh.aicamera.camera.FrameAnalyzer
+import com.dinh.aicamera.composition.AiMode
 import com.dinh.aicamera.composition.AiStage
 import com.dinh.aicamera.composition.CompositionEngine
 import com.dinh.aicamera.composition.SensorOrientationHelper
@@ -139,7 +140,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         preferences = AppPreferences(this)
-        preferences.isAiEnabled = false // Mở app là AI luôn tắt, user bật tay khi cần
+        preferences.aiMode = AiMode.OFF // Mở app là AI luôn tắt, user bật tay khi cần
         updateManager = AppUpdateManager(this)
 
         initAIEngines()
@@ -172,7 +173,7 @@ class MainActivity : AppCompatActivity() {
                 if (isFinishing || isDestroyed) return@runOnUiThread
 
                 // Nếu AI TẮT: Bỏ qua mọi phân tích để camera mượt và tiết kiệm pin tối đa
-                if (!preferences.isAiEnabled) {
+                if (preferences.aiMode == AiMode.OFF) {
                     return@runOnUiThread
                 }
 
@@ -193,17 +194,18 @@ class MainActivity : AppCompatActivity() {
                     rollAngle = currentRoll,
                     pitchAngle = currentPitch,
                     isDeviceSteady = isDeviceSteady,
-                    suppressAutoCapture = (compositionEngine.getSelectedId() != null),
+                    suppressAutoCapture = (preferences.aiMode != AiMode.ZOOM || compositionEngine.getSelectedId() != null),
+                    aiMode = preferences.aiMode,
                     onAutoCaptureTrigger = {
-                        if (preferences.isAiEnabled && compositionEngine.getSelectedId() == null) {
+                        if (preferences.aiMode == AiMode.ZOOM) {
                             triggerShutterCapture(isAuto = true)
                         }
                     }
                 )
 
-                // Rung phản hồi nhẹ khi vừa căn chuẩn vào vùng đích (ALIGNED) - debounce 1.5s
+                // Rung phản hồi nhẹ khi vừa căn chuẩn vào vùng đích (ALIGNED) - debounce 1.5s: chỉ khi aiMode == ZOOM
                 val now = System.currentTimeMillis()
-                if (state.stage == AiStage.ALIGNED && lastAiStage != AiStage.ALIGNED && (now - lastVibrateTime >= 1500L)) {
+                if (preferences.aiMode == AiMode.ZOOM && state.stage == AiStage.ALIGNED && lastAiStage != AiStage.ALIGNED && (now - lastVibrateTime >= 1500L)) {
                     vibrateLight()
                     lastVibrateTime = now
                 }
@@ -212,8 +214,8 @@ class MainActivity : AppCompatActivity() {
                 // Cập nhật AR overlay (3 Bước: SCANNING -> GUIDING -> ALIGNED)
                 binding.compositionOverlay.updateState(state)
 
-                // BƯỚC 3: TỰ ĐỘNG ZOOM khi đã vào vùng đích (deadband > 0.02, không gọi khi AI tắt, stage SCANNING, đang chọn chấm hoặc manual zoom override)
-                if (preferences.isAiEnabled && compositionEngine.getSelectedId() == null && state.stage != AiStage.SCANNING && state.stage == AiStage.ALIGNED && state.shouldZoom && !manualZoomOverride) {
+                // BƯỚC 3: TỰ ĐỘNG ZOOM legacy (deadband > 0.02, chỉ khi aiMode == ZOOM, stage ALIGNED, shouldZoom và !manualZoomOverride)
+                if (preferences.aiMode == AiMode.ZOOM && state.stage == AiStage.ALIGNED && state.shouldZoom && !manualZoomOverride) {
                     val currentRatio = cameraManager.getZoomRatio()
                     if (abs(state.targetZoomRatio - currentRatio) > 0.02f) {
                         cameraManager.setZoomRatio(state.targetZoomRatio, smooth = true)
@@ -223,17 +225,25 @@ class MainActivity : AppCompatActivity() {
                 // AI Gợi ý Filter (hiện dưới khung hình, không đè lên AR overlay)
                 evaluateAIFilterSuggestion(avgLuminance)
 
-                // Kiểm tra trạng thái LOCKED khi chấm đã chọn nằm trong ~8% tâm khung hình (§2.4)
-                val selectedDot = compositionEngine.getSelectedSuggestion()
-                if (selectedDot != null) {
-                    val dotDist = kotlin.math.hypot(selectedDot.x - 0.5f, selectedDot.y - 0.5f)
-                    if (dotDist <= 0.08f) {
-                        if (!isSuggestionLocked) {
-                            isSuggestionLocked = true
-                            binding.compositionOverlay.setLocked(true)
-                            vibrateLight(30L)
-                            binding.tvAiSuggestion.text = "Bố cục đẹp!"
-                            binding.aiSuggestionBubble.visibility = View.VISIBLE
+                // Khối zoom mượt theo chấm đã chọn + kiểm tra LOCKED (~8% tâm): chỉ khi aiMode == DOTS
+                if (preferences.aiMode == AiMode.DOTS) {
+                    val selectedDot = compositionEngine.getSelectedSuggestion()
+                    if (selectedDot != null) {
+                        val dotDist = kotlin.math.hypot(selectedDot.x - 0.5f, selectedDot.y - 0.5f)
+                        if (dotDist <= 0.08f) {
+                            if (!isSuggestionLocked) {
+                                isSuggestionLocked = true
+                                binding.compositionOverlay.setLocked(true)
+                                vibrateLight(30L)
+                                binding.tvAiSuggestion.text = "Bố cục đẹp!"
+                                binding.aiSuggestionBubble.visibility = View.VISIBLE
+                            }
+                        } else {
+                            if (isSuggestionLocked) {
+                                isSuggestionLocked = false
+                                binding.compositionOverlay.setLocked(false)
+                                binding.aiSuggestionBubble.visibility = View.GONE
+                            }
                         }
                     } else {
                         if (isSuggestionLocked) {
@@ -241,12 +251,6 @@ class MainActivity : AppCompatActivity() {
                             binding.compositionOverlay.setLocked(false)
                             binding.aiSuggestionBubble.visibility = View.GONE
                         }
-                    }
-                } else {
-                    if (isSuggestionLocked) {
-                        isSuggestionLocked = false
-                        binding.compositionOverlay.setLocked(false)
-                        binding.aiSuggestionBubble.visibility = View.GONE
                     }
                 }
             }
@@ -305,16 +309,19 @@ class MainActivity : AppCompatActivity() {
                 // Chạm lại chấm đang chọn -> Hủy chọn, về SUGGESTING (§2.5)
                 binding.compositionOverlay.setSelected(null)
                 binding.compositionOverlay.setLocked(false)
-                binding.compositionOverlay.isLegacyGuideVisible = true
+                binding.compositionOverlay.isLegacyGuideVisible = (preferences.aiMode == AiMode.ZOOM)
                 isSuggestionLocked = false
                 binding.aiSuggestionBubble.visibility = View.GONE
             }
         }
 
         // Khởi tạo trạng thái mặc định
-        frameAnalyzer.isAiEnabled = preferences.isAiEnabled
-        frameAnalyzer.onAiToggled(preferences.isAiEnabled)
-        binding.compositionOverlay.isAiEnabled = preferences.isAiEnabled
+        val isAiActive = (preferences.aiMode != AiMode.OFF)
+        frameAnalyzer.isAiEnabled = isAiActive
+        frameAnalyzer.aiMode = preferences.aiMode
+        frameAnalyzer.onAiToggled(isAiActive)
+        binding.compositionOverlay.isAiEnabled = isAiActive
+        binding.compositionOverlay.aiMode = preferences.aiMode
         binding.compositionOverlay.gridMode = preferences.gridMode
         binding.compositionOverlay.isHistogramEnabled = preferences.isHistogramEnabled
         binding.compositionOverlay.isPoseGuideEnabled = preferences.isPoseGuideEnabled
@@ -344,38 +351,15 @@ class MainActivity : AppCompatActivity() {
         LiquidGlassHelper.setupGlass(binding.tvGalleryCount)
         LiquidGlassHelper.setupGlass(binding.permissionCard)
 
-        // 1. Nút Bật/Tắt AI (Mặc định TẮT)
-        updateAiToggleUI()
-        binding.btnAiToggle.setOnClickListener {
-            preferences.isAiEnabled = !preferences.isAiEnabled
-            frameAnalyzer.onAiToggled(preferences.isAiEnabled)
-            binding.compositionOverlay.isAiEnabled = preferences.isAiEnabled
-            subjectTracker?.reset()
-            manualZoomOverride = false
-            isSuggestionLocked = false
-
-            if (preferences.isAiEnabled) {
-                // Bật AI -> trạng thái SCANNING, hiện bubble "Đang quét..." (~1.5s) (§2.2)
-                binding.tvAiSuggestion.text = "Đang quét..."
-                binding.aiSuggestionBubble.visibility = View.VISIBLE
-                Handler(Looper.getMainLooper()).postDelayed({
-                    if (preferences.isAiEnabled && compositionEngine.getSelectedId() == null) {
-                        binding.aiSuggestionBubble.visibility = View.GONE
-                    }
-                }, 1500L)
-            } else {
-                // Tắt AI -> xóa hết chấm, về preview thường (§2.7)
-                cameraManager.cancelSmoothZoom()
-                cameraManager.resetZoom()
-                compositionEngine.clearSuggestions()
-                binding.compositionOverlay.clearSuggestions()
-                binding.compositionOverlay.isLegacyGuideVisible = true
-                binding.aiSuggestionBubble.visibility = View.GONE
-            }
-
-            updateAiToggleUI()
-            val msg = if (preferences.isAiEnabled) "Đã bật AI Hướng dẫn bố cục" else "Đã tắt AI - Trở về camera thường"
-            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+        // 1. Nút AI Gợi ý điểm đẹp (DOTS) & AI Tự động zoom (ZOOM)
+        updateAiModeUI()
+        binding.btnAiDots.setOnClickListener {
+            animateButtonClick(it)
+            switchAiMode(AiMode.DOTS)
+        }
+        binding.btnAiZoom.setOnClickListener {
+            animateButtonClick(it)
+            switchAiMode(AiMode.ZOOM)
         }
 
         // 2. Toggle Lưới với vòng lặp 5 kiểu (Tắt -> 1/3 -> Golden -> Chéo -> Trung tâm -> Tắt)
@@ -508,18 +492,69 @@ class MainActivity : AppCompatActivity() {
         populateFilterCarousel()
     }
 
-    private fun updateAiToggleUI() {
-        val isEnabled = preferences.isAiEnabled
-        if (isEnabled) {
-            binding.btnAiToggle.setColorFilter(ContextCompat.getColor(this, R.color.accent_pink))
-            if (preferences.isAutoCaptureEnabled) {
-                binding.autoCaptureBadge.visibility = View.VISIBLE
-            }
+    private fun switchAiMode(targetMode: AiMode) {
+        val newMode = if (preferences.aiMode == targetMode) AiMode.OFF else targetMode
+        preferences.aiMode = newMode
+
+        subjectTracker?.reset()
+        manualZoomOverride = false
+        isSuggestionLocked = false
+        cameraManager.cancelSmoothZoom()
+        cameraManager.resetZoom()
+        compositionEngine.clearSuggestions()
+        binding.compositionOverlay.clearSuggestions()
+        binding.compositionOverlay.isLegacyGuideVisible = (newMode == AiMode.ZOOM)
+
+        val isAiActive = (newMode != AiMode.OFF)
+        frameAnalyzer.isAiEnabled = isAiActive
+        frameAnalyzer.aiMode = newMode
+        frameAnalyzer.onAiToggled(isAiActive)
+        binding.compositionOverlay.isAiEnabled = isAiActive
+        binding.compositionOverlay.aiMode = newMode
+
+        if (isAiActive) {
+            binding.tvAiSuggestion.text = "Đang quét..."
+            binding.aiSuggestionBubble.visibility = View.VISIBLE
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (preferences.aiMode != AiMode.OFF && compositionEngine.getSelectedId() == null) {
+                    binding.aiSuggestionBubble.visibility = View.GONE
+                }
+            }, 1500L)
+
+            val msg = if (newMode == AiMode.DOTS) getString(R.string.ai_dots_on) else getString(R.string.ai_zoom_on)
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
         } else {
-            binding.btnAiToggle.setColorFilter(ContextCompat.getColor(this, R.color.white_50))
-            binding.autoCaptureBadge.visibility = View.GONE
             binding.aiSuggestionBubble.visibility = View.GONE
+            Toast.makeText(this, "Đã tắt AI - Trở về camera thường", Toast.LENGTH_SHORT).show()
         }
+
+        updateAiModeUI()
+    }
+
+    private fun updateAiModeUI() {
+        val currentMode = preferences.aiMode
+        val pinkColor = ContextCompat.getColor(this, R.color.accent_pink)
+        val dimWhiteColor = ContextCompat.getColor(this, R.color.white_50)
+        val whiteColor = ContextCompat.getColor(this, R.color.white)
+
+        when (currentMode) {
+            AiMode.DOTS -> {
+                binding.btnAiDots.setColorFilter(pinkColor)
+                binding.btnAiZoom.setColorFilter(dimWhiteColor)
+            }
+            AiMode.ZOOM -> {
+                binding.btnAiDots.setColorFilter(dimWhiteColor)
+                binding.btnAiZoom.setColorFilter(pinkColor)
+            }
+            AiMode.OFF -> {
+                binding.btnAiDots.setColorFilter(whiteColor)
+                binding.btnAiZoom.setColorFilter(whiteColor)
+                binding.aiSuggestionBubble.visibility = View.GONE
+            }
+        }
+
+        val showBadge = (currentMode == AiMode.ZOOM && preferences.isAutoCaptureEnabled)
+        binding.autoCaptureBadge.visibility = if (showBadge) View.VISIBLE else View.GONE
     }
 
     private fun updateGridToggleUI() {
@@ -879,7 +914,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun evaluateAIFilterSuggestion(luminance: Float) {
-        if (!preferences.isAiEnabled) {
+        if (preferences.aiMode == AiMode.OFF) {
             binding.aiSuggestionBubble.visibility = View.GONE
             return
         }

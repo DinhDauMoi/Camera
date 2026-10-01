@@ -22,6 +22,7 @@ import kotlin.math.hypot
 import kotlin.math.sin
 import android.os.SystemClock
 import android.view.MotionEvent
+import com.dinh.aicamera.composition.AiMode
 import com.dinh.aicamera.composition.Suggestion
 
 class CompositionOverlayView @JvmOverloads constructor(
@@ -39,6 +40,12 @@ class CompositionOverlayView @JvmOverloads constructor(
     private var fadeAnimator: ValueAnimator? = null
 
     var onSuggestionTap: ((Int) -> Unit)? = null
+
+    var aiMode: AiMode = AiMode.OFF
+        set(value) {
+            field = value
+            invalidate()
+        }
 
     var isAiEnabled: Boolean = false
         set(value) {
@@ -331,7 +338,7 @@ class CompositionOverlayView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!isAiEnabled || suggestions.isEmpty()) {
+        if (!isAiEnabled || aiMode != AiMode.DOTS || suggestions.isEmpty()) {
             return super.onTouchEvent(event)
         }
 
@@ -442,13 +449,15 @@ class CompositionOverlayView @JvmOverloads constructor(
         }
 
         // Nếu AI TẮT: dừng vẽ toàn bộ AR, trả về camera thường sạch sẽ
-        if (!isAiEnabled) return
+        if (!isAiEnabled || aiMode == AiMode.OFF) return
 
-        // Layer vẽ: dưới guide AI hiện có, trên preview (§5)
-        drawSuggestionDotsAndGuide(canvas, w, h)
+        // 1. Vẽ chấm gợi ý: CHỈ KHI isAiEnabled && aiMode == AiMode.DOTS
+        if (aiMode == AiMode.DOTS) {
+            drawSuggestionDotsAndGuide(canvas, w, h)
+        }
 
-        // Phân nhánh vẽ theo 3 Bước rõ ràng (chỉ hiện khi chưa chọn chấm hoặc legacy guide được bật)
-        if (isLegacyGuideVisible && selectedSuggestionId == null) {
+        // 2. Vẽ guide legacy (vòng vàng, mũi tên, điểm số): CHỈ KHI isAiEnabled && aiMode == AiMode.ZOOM
+        if (aiMode == AiMode.ZOOM) {
             when (currentState.stage) {
                 AiStage.SCANNING -> {
                     // Bước 1: Quét khung hình nhẹ nhàng (radar pulse), chưa hiện gợi ý dồn dập

@@ -3,13 +3,22 @@ package com.dinh.aicamera.ui
 import android.content.Context
 import android.content.SharedPreferences
 
+import com.dinh.aicamera.composition.AiMode
+
 class AppPreferences(context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences("aicamera_prefs", Context.MODE_PRIVATE)
 
-    var isAiEnabled: Boolean
-        get() = prefs.getBoolean(KEY_AI_ENABLED, false) // Mặc định TẮT theo yêu cầu
-        set(value) = prefs.edit().putBoolean(KEY_AI_ENABLED, value).apply()
+    var aiMode: AiMode
+        get() {
+            val raw = prefs.getString(KEY_AI_MODE, AiMode.OFF.name) ?: AiMode.OFF.name
+            return try {
+                AiMode.valueOf(raw)
+            } catch (_: Exception) {
+                AiMode.OFF
+            }
+        }
+        set(value) = prefs.edit().putString(KEY_AI_MODE, value.name).apply()
 
     // 0 = TẮT, 1 = 1/3, 2 = Golden ratio, 3 = Đường chéo, 4 = Trung tâm
     var gridMode: Int
@@ -136,7 +145,7 @@ class AppPreferences(context: Context) {
     }
 
     companion object {
-        private const val KEY_AI_ENABLED = "key_ai_enabled"
+        private const val KEY_AI_MODE = "key_ai_mode"
         private const val KEY_GRID_ENABLED = "key_grid_enabled" // legacy
         private const val KEY_GRID_MODE = "key_grid_mode"
         private const val KEY_HISTOGRAM_ENABLED = "key_histogram_enabled"

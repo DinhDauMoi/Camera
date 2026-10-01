@@ -8,6 +8,7 @@ import androidx.annotation.OptIn
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import com.dinh.aicamera.composition.AiMode
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
@@ -39,6 +40,7 @@ class FrameAnalyzer(
 
     // AI mặc định TẮT: khi tắt thì KHÔNG quét để tiết kiệm pin tối đa
     var isAiEnabled: Boolean = false
+    var aiMode: AiMode = AiMode.OFF
 
     // View dimensions for coordinate scaling
     var previewViewWidth: Int = 1080
@@ -207,6 +209,7 @@ class FrameAnalyzer(
         now: Long
     ) {
         val engine = compositionEngine ?: return
+        if (aiMode != AiMode.DOTS) return
         val selectedId = engine.getSelectedId()
 
         val viewW = previewViewWidth.toFloat()

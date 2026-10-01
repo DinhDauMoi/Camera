@@ -35,6 +35,10 @@
     <string name="custom_filter_quick_btn">Tùy chỉnh filter</string>
 
     <!-- Tự động chụp & Flash & AI Toggle -->
+    <string name="ai_mode_dots">AI Gợi ý điểm đẹp</string>
+    <string name="ai_mode_zoom">AI Tự động zoom</string>
+    <string name="ai_dots_on">Đã bật AI Gợi ý điểm đẹp</string>
+    <string name="ai_zoom_on">Đã bật AI Tự động zoom</string>
     <string name="ai_mode_on">AI Hướng dẫn: BẬT</string>
     <string name="ai_mode_off">AI Hướng dẫn: TẮT</string>
     <string name="grid_on">Lưới 1/3: BẬT</string>

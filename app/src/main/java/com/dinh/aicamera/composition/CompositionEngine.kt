@@ -151,9 +151,10 @@ class CompositionEngine {
         pitchAngle: Float,
         isDeviceSteady: Boolean,
         suppressAutoCapture: Boolean = false,
+        aiMode: AiMode = AiMode.OFF,
         onAutoCaptureTrigger: () -> Unit
     ): CompositionState {
-        if (screenWidth <= 0f || screenHeight <= 0f) {
+        if (screenWidth <= 0f || screenHeight <= 0f || aiMode == AiMode.OFF) {
             return CompositionState()
         }
 
@@ -164,6 +165,38 @@ class CompositionEngine {
 
         val thirdsH = floatArrayOf(y1, y2)
         val thirdsV = floatArrayOf(x1, x2)
+
+        // Mode DOTS: chỉ tính và publish suggestions, trả về CompositionState trung tính
+        // KHÔNG vòng vàng đích, KHÔNG mũi tên, KHÔNG tự động chụp, KHÔNG auto-zoom legacy
+        if (aiMode == AiMode.DOTS) {
+            resetAutoCapture()
+            lockedTargetPoint = null
+            anchorSubjectCenter = null
+            return CompositionState(
+                stage = AiStage.SCANNING,
+                hasSubject = (subjectBox != null && !subjectBox.isEmpty),
+                isFace = isFace,
+                subjectBounds = subjectBox ?: RectF(),
+                subjectCenter = subjectBox?.let { PointF(it.centerX(), it.centerY()) } ?: PointF(),
+                targetPoint = null,
+                distanceToTarget = 0f,
+                rollAngle = rollAngle,
+                pitchAngle = pitchAngle,
+                score = 0,
+                guidanceText = "Gợi ý bố cục đẹp",
+                targetZoomRatio = 1.0f,
+                shouldZoom = false,
+                isAutoCaptureReady = false,
+                autoCaptureProgress = 0f,
+                gridThirdsHorizontal = thirdsH,
+                gridThirdsVertical = thirdsV
+            )
+        }
+
+        // Mode ZOOM: Đảm bảo _suggestions luôn rỗng
+        if (_suggestions.value.isNotEmpty()) {
+            clearSuggestions()
+        }
 
         // BƯỚC 1: Đang quét khung hình (chưa có chủ thể cố định)
         if (subjectBox == null || subjectBox.isEmpty) {
