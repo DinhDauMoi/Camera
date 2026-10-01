@@ -54,13 +54,8 @@ jobs:
           name: Lievis Cam ${{ github.ref_name }}
           files: release-assets/LievisCam-${{ github.ref_name }}.apk
           body: |
-            - Nút ⋯ mới: mở panel công cụ, gom các chức năng phụ cho gọn màn hình
-            - Nút lưới: bấm nhiều lần để đổi kiểu (1/3, golden ratio, đường chéo, trung tâm)
-            - Histogram realtime ở góc phải trên
-            - Pose guide: bóng người mẫu để canh dáng chụp chân dung
-            - AI học gu: nhớ vùng hay chọn, ưu tiên gợi ý vùng đó
-            - Nhắc giờ vàng: báo trước hoàng hôn 20 phút
-            - Thước cân bằng dùng được cả khi tắt AI
+            - Filter "Tùy chỉnh" kiểu iPhone: chip mới + bảng chỉnh gồm lưới chọn màu 2D, 3 thanh trượt TÔNG/ẤM/RỰC RỠ, xem trước trực tiếp; nút mở nhanh ở cột cạnh trái; thông số được lưu và áp dụng khi chụp
+            - Tách AI thành 2 chức năng riêng biệt: "Gợi ý điểm đẹp" (hiện chấm gợi ý, bấm chấm để zoom tới bố cục đẹp) và "Tự động zoom" (vòng vàng đích + tự zoom khi căn chuẩn) — 2 nút riêng trên toolbar, không còn xung đột, cả 2 mặc định tắt khi mở app
           generate_release_notes: false
           draft: false
           prerelease: false
