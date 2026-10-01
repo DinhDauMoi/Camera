@@ -125,7 +125,7 @@ class ToolsBottomSheetDialog : BottomSheetDialogFragment() {
 
     private fun updateToolUi(label: TextView, isChecked: Boolean) {
         val color = if (isChecked) {
-            ContextCompat.getColor(requireContext(), R.color.black)
+            ContextCompat.getColor(requireContext(), R.color.accent_pink)
         } else {
             ContextCompat.getColor(requireContext(), R.color.white_70)
         }
