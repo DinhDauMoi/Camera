@@ -178,7 +178,7 @@ class CompositionEngine {
                 isFace = isFace,
                 subjectBounds = subjectBox ?: RectF(),
                 subjectCenter = subjectBox?.let { PointF(it.centerX(), it.centerY()) } ?: PointF(),
-                targetPoint = null,
+                targetPoint = PointF(),
                 distanceToTarget = 0f,
                 rollAngle = rollAngle,
                 pitchAngle = pitchAngle,
