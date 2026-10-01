@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.ContentObserver
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.RenderEffect
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -41,6 +43,7 @@ import com.dinh.aicamera.composition.SensorOrientationHelper
 import com.dinh.aicamera.composition.SubjectTracker
 import com.dinh.aicamera.databinding.ActivityMainBinding
 import com.dinh.aicamera.filter.AIFilterRecommender
+import com.dinh.aicamera.filter.ColorMatrixFilter
 import com.dinh.aicamera.filter.FilterType
 import com.dinh.aicamera.overlay.PoseType
 import com.dinh.aicamera.ui.gallery.FullscreenPhotoDialog
@@ -394,6 +397,9 @@ class MainActivity : AppCompatActivity() {
         LiquidGlassHelper.setupGlass(binding.btnCustomFilter)
         binding.btnCustomFilter.setOnClickListener {
             animateButtonClick(it)
+            if (activeFilter != FilterType.CUSTOM) {
+                selectFilter(FilterType.CUSTOM)
+            }
             showCustomFilterDialog()
         }
 
@@ -884,6 +890,7 @@ class MainActivity : AppCompatActivity() {
             updateChipStyle(child, f == activeFilter)
         }
         updateLeftSideButtonsVisibility()
+        updateViewfinderCustomEffect()
     }
 
     private fun showCustomFilterDialog() {
@@ -891,16 +898,36 @@ class MainActivity : AppCompatActivity() {
         if (existing == null) {
             val dialog = CustomFilterBottomSheetDialog.newInstance()
             dialog.show(supportFragmentManager, CustomFilterBottomSheetDialog.TAG)
+            dialog.onFilterChanged = {
+                updateViewfinderCustomEffect()
+            }
+            updateViewfinderCustomEffect()
         }
+    }
+
+    private fun updateViewfinderCustomEffect() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return // RenderEffect cần API 31+
+        if (activeFilter != FilterType.CUSTOM) {
+            binding.previewView.setRenderEffect(null)
+            return
+        }
+        val matrix = ColorMatrixFilter.getCustomMatrix(
+            tone = preferences.customFilterTone,
+            warmth = preferences.customFilterWarmth,
+            vivid = preferences.customFilterVivid,
+            gridX = preferences.customFilterGridX,
+            gridY = preferences.customFilterGridY
+        )
+        binding.previewView.setRenderEffect(
+            RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(matrix))
+        )
     }
 
     private fun updateLeftSideButtonsVisibility() {
         val showPose = preferences.isPoseGuideEnabled
-        val showCustom = activeFilter == FilterType.CUSTOM
-
         binding.btnPoseToggle.visibility = if (showPose) View.VISIBLE else View.GONE
-        binding.btnCustomFilter.visibility = if (showCustom) View.VISIBLE else View.GONE
-        binding.leftSideButtons.visibility = if (showPose || showCustom) View.VISIBLE else View.GONE
+        binding.btnCustomFilter.visibility = View.VISIBLE
+        binding.leftSideButtons.visibility = View.VISIBLE
     }
 
     private fun updateChipStyle(chip: TextView, isSelected: Boolean) {
